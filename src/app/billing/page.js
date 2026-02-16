@@ -158,10 +158,12 @@ export default function BillingPage() {
     const currentPaid = paidAmount === '' ? calculateTotal() : Number(paidAmount);
     const currentDue = calculateTotal() - currentPaid;
 
+    const [activeTab, setActiveTab] = useState('products'); // 'products' | 'invoice'
+
     return (
-        <div className="flex flex-col lg:flex-row gap-6 h-[calc(100vh-140px)]">
-            {/* Left Side: Product Selection (Dark/Light mode native) */}
-            <div className={`flex-1 flex flex-col gap-4 ${success ? 'hidden lg:flex' : ''}`}>
+        <div className="flex flex-col lg:flex-row gap-6 h-[calc(100vh-140px)] relative">
+            {/* Mobile Tab Check: Only show if activeTab is products OR if we are on desktop (lg) */}
+            <div className={`flex-1 flex flex-col gap-4 ${success ? 'hidden lg:flex' : ''} ${activeTab === 'products' ? 'flex' : 'hidden lg:flex'}`}>
                 <div className="flex items-center gap-4 bg-white p-4 rounded-xl shadow dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800">
                     <Search className="w-5 h-5 text-zinc-500" />
                     <input
@@ -187,7 +189,7 @@ export default function BillingPage() {
                     ))}
                 </div>
 
-                <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4 overflow-y-auto p-1">
+                <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4 overflow-y-auto p-1 pb-20 lg:pb-1">
                     {filteredProducts.map(product => (
                         <div
                             key={product._id}
@@ -205,22 +207,62 @@ export default function BillingPage() {
                         </div>
                     ))}
                 </div>
+
+                {/* Mobile Floating Summary Bar */}
+                {cart.length > 0 && (
+                    <div className="lg:hidden fixed bottom-4 left-4 right-4 bg-zinc-900 text-white p-4 rounded-xl shadow-xl flex justify-between items-center z-50 dark:bg-zinc-100 dark:text-zinc-900">
+                        <div className="flex flex-col">
+                            <span className="text-xs opacity-80">{cart.length} Items</span>
+                            <span className="font-bold text-lg">₹{calculateTotal().toFixed(2)}</span>
+                        </div>
+                        <button
+                            onClick={() => setActiveTab('invoice')}
+                            className="bg-white text-zinc-900 px-4 py-2 rounded-lg font-bold text-sm dark:bg-zinc-900 dark:text-white"
+                        >
+                            View Bill &rarr;
+                        </button>
+                    </div>
+                )}
             </div>
 
             {/* Right Side: Invoice (Paper Style) */}
-            <div className={`w-full lg:w-[800px] flex flex-col items-center overflow-y-auto overflow-x-auto ${success ? 'block' : ''}`}>
+            {/* Only show if activeTab is invoice OR if we are on desktop (lg) */}
+            <div className={`w-full lg:w-[800px] flex flex-col items-start lg:items-center overflow-y-auto overflow-x-auto ${success ? 'block' : ''} ${activeTab === 'invoice' ? 'flex' : 'hidden lg:flex'}`}>
+                {/* Mobile Back Button */}
+                <div className="lg:hidden w-full mb-4 flex justify-start">
+                    <button
+                        onClick={() => setActiveTab('products')}
+                        className="text-zinc-500 flex items-center gap-2 text-sm font-medium p-2 bg-white rounded-md shadow-sm border border-zinc-200"
+                    >
+                        &larr; Back to Products
+                    </button>
+                </div>
+
+                {/* Floating Submit Button (Mobile Invoice View) */}
+                {!success && activeTab === 'invoice' && cart.length > 0 && (
+                    <div className="lg:hidden fixed bottom-4 left-4 right-4 z-50">
+                        <button
+                            onClick={handleCheckout}
+                            disabled={submitting}
+                            className="w-full bg-green-600 text-white p-4 rounded-xl shadow-xl font-bold text-lg flex justify-center items-center gap-2 disabled:opacity-50"
+                        >
+                            {submitting ? 'Saving...' : <><CheckCircle className="w-5 h-5" /> Finalize Bill (₹{calculateTotal().toFixed(2)})</>}
+                        </button>
+                    </div>
+                )}
+
                 {success ? (
-                    <div className="bg-white dark:bg-zinc-950 p-8 rounded-xl shadow border border-zinc-200 dark:border-zinc-800 text-center w-full">
+                    <div className="bg-white dark:bg-zinc-900 p-8 rounded-xl shadow border border-zinc-200 dark:border-zinc-800 text-center w-full">
                         <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
-                        <h2 className="text-2xl font-bold mb-2">Bill Created Successfully!</h2>
+                        <h2 className="text-2xl font-bold mb-2 text-zinc-900 dark:text-gray-100">Bill Created Successfully!</h2>
                         <p className="text-zinc-500 mb-6">Total Amount: ₹{lastBillTotal.toFixed(2)}</p>
-                        <div className="flex gap-4 justify-center">
+                        <div className="flex flex-col sm:flex-row gap-4 justify-center">
                             {lastBillId && (
-                                <Link href={`/bills/${lastBillId}`} target="_blank" className="flex items-center gap-2 bg-zinc-900 text-white px-6 py-3 rounded-md hover:bg-zinc-800 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-zinc-200">
+                                <Link href={`/bills/${lastBillId}`} target="_blank" className="flex items-center justify-center gap-2 bg-zinc-900 text-white px-6 py-3 rounded-md hover:bg-zinc-800 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-zinc-200 transition-colors">
                                     <Printer className="w-4 h-4" /> Print Invoice
                                 </Link>
                             )}
-                            <button onClick={startNewBill} className="px-6 py-3 border border-zinc-300 rounded-md hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-800">
+                            <button onClick={startNewBill} className="px-6 py-3 border border-zinc-300 rounded-md hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 transition-colors">
                                 New Bill
                             </button>
                         </div>
@@ -265,6 +307,7 @@ export default function BillingPage() {
                                             style={{ fontFamily: 'Courier New' }}
                                             value={customer.name}
                                             onChange={(e) => setCustomer({ ...customer, name: e.target.value })}
+                                            placeholder="Customer Name..."
                                         />
                                     </div>
                                 </div>
@@ -280,6 +323,7 @@ export default function BillingPage() {
                                             className="flex-1 border-b border-dotted border-black outline-none px-1 bg-transparent font-medium"
                                             value={customer.address}
                                             onChange={(e) => setCustomer({ ...customer, address: e.target.value })}
+                                            placeholder="Address..."
                                         />
                                     </div>
                                 </div>
@@ -311,15 +355,15 @@ export default function BillingPage() {
                                         <div key={item.productId} className="flex border-b border-black/10 hover:bg-yellow-50 group">
                                             <div className="w-[8%] p-1 text-center py-2">{index + 1}</div>
                                             <div className="w-[52%] p-1 pl-2 py-2 font-medium flex justify-between items-center">
-                                                {item.name}
-                                                <button onClick={() => removeFromCart(item.productId)} className="text-red-500 opacity-0 group-hover:opacity-100 px-2">
+                                                <span className="truncate pr-2">{item.name}</span>
+                                                <button onClick={() => removeFromCart(item.productId)} className="text-red-500 opacity-0 group-hover:opacity-100 px-2 lg:opacity-0 opacity-100 shrink-0">
                                                     <Trash2 className="w-3 h-3" />
                                                 </button>
                                             </div>
                                             <div className="w-[12%] p-1 text-center py-2 flex items-center justify-center gap-1">
-                                                <button onClick={() => updateQuantity(item.productId, item.quantity - 1)} className="hover:text-red-500 text-gray-400 opacity-0 group-hover:opacity-100"><Minus className="w-3 h-3" /></button>
+                                                <button onClick={() => updateQuantity(item.productId, item.quantity - 1)} className="hover:text-red-500 text-gray-400 opacity-0 group-hover:opacity-100 lg:opacity-0 opacity-100"><Minus className="w-3 h-3" /></button>
                                                 <span>{item.quantity}</span>
-                                                <button onClick={() => updateQuantity(item.productId, item.quantity + 1)} className="hover:text-green-500 text-gray-400 opacity-0 group-hover:opacity-100"><Plus className="w-3 h-3" /></button>
+                                                <button onClick={() => updateQuantity(item.productId, item.quantity + 1)} className="hover:text-green-500 text-gray-400 opacity-0 group-hover:opacity-100 lg:opacity-0 opacity-100"><Plus className="w-3 h-3" /></button>
                                             </div>
                                             <div className="w-[13%] p-1 text-center py-2">₹{item.price}</div>
                                             <div className="w-[15%] p-1 text-right pr-2 py-2">₹{(item.price * item.quantity).toFixed(2)}</div>
