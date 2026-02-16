@@ -1,266 +1,205 @@
-import dbConnect from '@/lib/db';
-import Product from '@/models/Product';
-import Bill from '@/models/Bill';
-import { LayoutDashboard, Package, AlertTriangle, TrendingUp, FileText } from 'lucide-react';
 import Link from 'next/link';
+import { Leaf, Sprout, FlaskConical, Bug, Phone, MapPin, Clock, ChevronRight } from 'lucide-react';
 
-export const dynamic = 'force-dynamic';
-
-async function getStats() {
-  await dbConnect();
-
-  const productCount = await Product.countDocuments();
-  const lowStockCount = await Product.countDocuments({ stock: { $lt: 5 } });
-  const billCount = await Bill.countDocuments();
-
-  // Calculate total available stock (Bags & MT) and breakdown
-  const products = await Product.find({});
-  let totalStockBags = 0;
-  let totalStockMT = 0;
-  const availableStockBreakdown = [];
-
-  products.forEach(product => {
-    totalStockBags += product.stock;
-    const weight = product.bagWeight || 50;
-    const mt = (product.stock * weight) / 1000;
-    totalStockMT += mt;
-    if (product.stock > 0) {
-      availableStockBreakdown.push({
-        name: product.name,
-        bags: product.stock,
-        mt: mt.toFixed(2)
-      });
-    }
-  });
-
-  // Calculate sold stock today and breakdown
-  const startOfDay = new Date();
-  startOfDay.setHours(0, 0, 0, 0);
-
-  const todayBills = await Bill.find({
-    createdAt: { $gte: startOfDay }
-  }).populate('items.productId');
-
-  let soldTodayBags = 0;
-  let soldTodayMT = 0;
-  const soldMap = {};
-
-  todayBills.forEach(bill => {
-    bill.items.forEach(item => {
-      soldTodayBags += item.quantity;
-      // Use product's current weight if available, else default to 50
-      const weight = item.productId?.bagWeight || 50;
-      const mt = (item.quantity * weight) / 1000;
-      soldTodayMT += mt;
-
-      const prodName = item.productName || item.productId?.name || 'Unknown';
-      if (!soldMap[prodName]) {
-        soldMap[prodName] = { bags: 0, mt: 0 };
-      }
-      soldMap[prodName].bags += item.quantity;
-      soldMap[prodName].mt += mt;
-    });
-  });
-
-  const soldTodayBreakdown = Object.entries(soldMap).map(([name, data]) => ({
-    name,
-    bags: data.bags,
-    mt: data.mt.toFixed(2)
-  }));
-
-
-  // Calculate total sold stock (All Time)
-  const totalSoldAgg = await Bill.aggregate([
-    { $unwind: "$items" },
-    {
-      $lookup: {
-        from: "products",
-        localField: "items.productId",
-        foreignField: "_id",
-        as: "product"
-      }
-    },
-    {
-      $project: {
-        name: { $ifNull: ["$items.productName", "Unknown"] },
-        quantity: "$items.quantity",
-        weight: { $ifNull: [{ $arrayElemAt: ["$product.bagWeight", 0] }, 50] }
-      }
-    },
-    {
-      $group: {
-        _id: "$name",
-        totalBags: { $sum: "$quantity" },
-        totalMT: {
-          $sum: { $divide: [{ $multiply: ["$quantity", "$weight"] }, 1000] }
-        }
-      }
-    }
-  ]);
-
-  let totalSoldBagsAllTime = 0;
-  let totalSoldMTAllTime = 0;
-  const totalSoldBreakdown = totalSoldAgg.map(item => {
-    totalSoldBagsAllTime += item.totalBags;
-    totalSoldMTAllTime += item.totalMT;
-    return {
-      name: item._id,
-      bags: item.totalBags,
-      mt: item.totalMT.toFixed(2)
-    };
-  });
-
-  // Calculate total revenue
-  const revenueData = await Bill.aggregate([
-    {
-      $group: {
-        _id: null,
-        total: { $sum: "$totalAmount" }
-      }
-    }
-  ]);
-  const totalRevenue = revenueData.length > 0 ? revenueData[0].total : 0;
-
-  // Get recent bills
-  const recentBills = await Bill.find({})
-    .sort({ createdAt: -1 })
-    .limit(5)
-    .populate('items.productId', 'name'); // Populate purely for display if reference exists
-
-  return {
-    productCount,
-    lowStockCount,
-    billCount,
-    totalRevenue,
-    totalStockBags,
-    totalStockMT,
-    availableStockBreakdown,
-    soldTodayBags,
-    soldTodayMT,
-    soldTodayBreakdown,
-    totalSoldBagsAllTime,
-    totalSoldMTAllTime,
-    totalSoldBreakdown,
-    recentBills: JSON.parse(JSON.stringify(recentBills)), // ID serialization
-  };
-}
-
-export default async function Home() {
-  const stats = await getStats();
-
+export default function LandingPage() {
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100">Dashboard</h1>
-        <div className="flex space-x-2">
-          <Link href="/billing" className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 bg-zinc-900 text-zinc-50 hover:bg-zinc-900/90 h-10 px-4 py-2 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-zinc-50/90">
-            Create New Bill
-          </Link>
-          <Link href="/products" className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-zinc-200 bg-white hover:bg-zinc-100 h-10 px-4 py-2 dark:border-zinc-800 dark:bg-zinc-950 dark:hover:bg-zinc-800 dark:text-zinc-50">
-            Manage Products
+    <div className="min-h-screen bg-white">
+      {/* Header */}
+      <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-lg border-b border-zinc-100">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl flex items-center justify-center shadow-lg shadow-green-500/20">
+              <Leaf className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <h1 className="text-xl font-bold text-zinc-800 leading-tight">Magadh Krishi Kendra</h1>
+              <p className="text-xs text-zinc-500 hidden sm:block">Your Trusted Agricultural Partner</p>
+            </div>
+          </div>
+          <Link
+            href="/login"
+            className="inline-flex items-center gap-2 bg-gradient-to-r from-green-500 to-emerald-600 text-white px-5 py-2.5 rounded-xl font-semibold text-sm shadow-lg shadow-green-500/30 hover:shadow-green-500/50 hover:from-green-600 hover:to-emerald-700 transition-all duration-300"
+          >
+            Login
+            <ChevronRight className="w-4 h-4" />
           </Link>
         </div>
-      </div>
+      </header>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card title="Total Products" value={stats.productCount} icon={Package} description="Active products in inventory" />
-        <Card
-          title="Available Stock"
-          value={`${stats.totalStockBags} Bags`}
-          subValue={`(${stats.totalStockMT.toFixed(2)} MT)`}
-          breakdown={stats.availableStockBreakdown}
-          icon={Package}
-          description="Total stock in hand"
-        />
-        <Card
-          title="Sold Today"
-          value={`${stats.soldTodayBags} Bags`}
-          subValue={`(${stats.soldTodayMT.toFixed(2)} MT)`}
-          breakdown={stats.soldTodayBreakdown}
-          icon={TrendingUp}
-          description="Sales for today"
-        />
-        <Card
-          title="Total Sold Stock"
-          value={`${stats.totalSoldBagsAllTime} Bags`}
-          subValue={`(${stats.totalSoldMTAllTime.toFixed(2)} MT)`}
-          breakdown={stats.totalSoldBreakdown}
-          icon={TrendingUp}
-          description="All-time sales"
-        />
-        <Card title="Total Bills" value={stats.billCount} icon={FileText} description="Total invoices generated" />
-        <Card title="Total Revenue" value={`₹${stats.totalRevenue.toFixed(2)}`} icon={TrendingUp} description="Lifetime revenue" />
-        <Card title="Low Stock Alerts" value={stats.lowStockCount} icon={AlertTriangle} description="Products with < 5 items" alert={stats.lowStockCount > 0} />
-      </div>
+      {/* Hero Section */}
+      <section className="relative overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50"></div>
+        <div className="absolute top-20 right-10 w-72 h-72 bg-green-200 rounded-full opacity-20 blur-3xl"></div>
+        <div className="absolute bottom-10 left-10 w-96 h-96 bg-emerald-200 rounded-full opacity-20 blur-3xl"></div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-        <div className="col-span-4 rounded-xl border border-zinc-200 bg-white text-zinc-950 shadow dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-50">
-          <div className="flex flex-col space-y-1.5 p-6">
-            <h3 className="font-semibold leading-none tracking-tight">Recent Transactions</h3>
-            <p className="text-sm text-zinc-500 dark:text-zinc-400">Latest bills generated by the system.</p>
-          </div>
-          <div className="p-6 pt-0">
-            <div className="relative w-full overflow-auto">
-              <table className="w-full caption-bottom text-sm text-left">
-                <thead className="[&_tr]:border-b">
-                  <tr className="border-b transition-colors hover:bg-zinc-100/50 data-[state=selected]:bg-zinc-100 dark:hover:bg-zinc-800/50 dark:data-[state=selected]:bg-zinc-800">
-                    <th className="h-12 px-4 align-middle font-medium text-zinc-500 dark:text-zinc-400">Customer</th>
-                    <th className="h-12 px-4 align-middle font-medium text-zinc-500 dark:text-zinc-400">Date</th>
-                    <th className="h-12 px-4 align-middle font-medium text-zinc-500 dark:text-zinc-400 text-right">Amount</th>
-                  </tr>
-                </thead>
-                <tbody className="[&_tr:last-child]:border-0">
-                  {stats.recentBills.length === 0 ? (
-                    <tr>
-                      <td colSpan={3} className="p-4 text-center text-zinc-500">No recent bills found.</td>
-                    </tr>
-                  ) : (
-                    stats.recentBills.map((bill) => (
-                      <tr key={bill._id} className="border-b transition-colors hover:bg-zinc-100/50 data-[state=selected]:bg-zinc-100 dark:hover:bg-zinc-800/50 dark:data-[state=selected]:bg-zinc-800">
-                        <td className="p-4 align-middle font-medium">{bill.customerName}</td>
-                        <td className="p-4 align-middle">{new Date(bill.createdAt).toLocaleDateString()}</td>
-                        <td className="p-4 align-middle text-right">₹{bill.totalAmount.toFixed(2)}</td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 sm:py-32">
+          <div className="text-center max-w-3xl mx-auto">
+            <div className="inline-flex items-center gap-2 bg-green-100 text-green-700 px-4 py-1.5 rounded-full text-sm font-medium mb-6">
+              <Sprout className="w-4 h-4" />
+              Serving Farmers Since Years
+            </div>
+            <h2 className="text-4xl sm:text-6xl font-black text-zinc-900 tracking-tight leading-tight">
+              मगध कृषि केंद्र
+            </h2>
+            <h3 className="text-2xl sm:text-3xl font-bold text-green-600 mt-2">
+              MAGADH KRISHI KENDRA
+            </h3>
+            <p className="mt-6 text-lg text-zinc-600 max-w-2xl mx-auto leading-relaxed">
+              आपका विश्वसनीय कृषि साथी — उच्च गुणवत्ता वाले <strong>खाद</strong>, <strong>बीज</strong>, और <strong>कीटनाशक</strong> एक ही छत के नीचे। हम किसानों की सेवा में सदैव तत्पर हैं।
+            </p>
+            <div className="mt-10 flex flex-col sm:flex-row gap-4 justify-center">
+              <Link
+                href="/login"
+                className="inline-flex items-center justify-center gap-2 bg-gradient-to-r from-green-500 to-emerald-600 text-white px-8 py-3.5 rounded-xl font-bold text-lg shadow-xl shadow-green-500/30 hover:shadow-green-500/50 hover:from-green-600 hover:to-emerald-700 transition-all duration-300"
+              >
+                व्यापार शुरू करें
+                <ChevronRight className="w-5 h-5" />
+              </Link>
+              <a
+                href="tel:9939408261"
+                className="inline-flex items-center justify-center gap-2 bg-white text-zinc-700 px-8 py-3.5 rounded-xl font-bold text-lg border-2 border-zinc-200 hover:border-green-300 hover:bg-green-50 transition-all duration-300"
+              >
+                <Phone className="w-5 h-5" />
+                हमें कॉल करें
+              </a>
             </div>
           </div>
         </div>
-      </div>
-    </div>
-  );
-}
+      </section>
 
+      {/* Products Section */}
+      <section className="py-20 bg-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl sm:text-4xl font-bold text-zinc-900">हमारे उत्पाद</h2>
+            <p className="mt-3 text-zinc-500 text-lg">सर्वोत्तम गुणवत्ता, उचित मूल्य</p>
+          </div>
 
-function Card({ title, value, subValue, breakdown, icon: Icon, description, alert }) {
-  return (
-    <div className={`rounded-xl border bg-white text-zinc-950 shadow dark:bg-zinc-950 dark:text-zinc-50 ${alert ? 'border-red-500' : 'border-zinc-200 dark:border-zinc-800'}`}>
-      <div className="p-6 flex flex-row items-center justify-between space-y-0 pb-2">
-        <h3 className="tracking-tight text-sm font-medium">{title}</h3>
-        <Icon className={`h-4 w-4 ${alert ? 'text-red-500' : 'text-zinc-500 dark:text-zinc-400'}`} />
-      </div>
-      <div className="p-6 pt-0">
-        <div className={`text-2xl font-bold ${alert ? 'text-red-600' : ''}`}>
-          {value}
-          {subValue && <span className="ml-2 text-lg font-normal text-zinc-500 dark:text-zinc-400">{subValue}</span>}
+          <div className="grid md:grid-cols-3 gap-8">
+            {/* Fertilizers */}
+            <div className="group relative bg-gradient-to-b from-green-50 to-white rounded-2xl border border-green-100 p-8 hover:shadow-xl hover:shadow-green-100/50 transition-all duration-300 hover:-translate-y-1">
+              <div className="w-14 h-14 bg-gradient-to-br from-green-400 to-green-600 rounded-2xl flex items-center justify-center shadow-lg shadow-green-500/20 mb-6">
+                <FlaskConical className="w-7 h-7 text-white" />
+              </div>
+              <h3 className="text-xl font-bold text-zinc-900 mb-3">🧪 खाद (Fertilizers)</h3>
+              <p className="text-zinc-600 leading-relaxed mb-4">
+                DAP, Urea, MOP, NPK, SSP और अन्य सभी प्रकार की खाद उपलब्ध। सरकारी दर पर।
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <span className="bg-green-100 text-green-700 text-xs font-medium px-3 py-1 rounded-full">DAP</span>
+                <span className="bg-green-100 text-green-700 text-xs font-medium px-3 py-1 rounded-full">Urea</span>
+                <span className="bg-green-100 text-green-700 text-xs font-medium px-3 py-1 rounded-full">MOP</span>
+                <span className="bg-green-100 text-green-700 text-xs font-medium px-3 py-1 rounded-full">NPK</span>
+                <span className="bg-green-100 text-green-700 text-xs font-medium px-3 py-1 rounded-full">SSP</span>
+              </div>
+            </div>
+
+            {/* Seeds */}
+            <div className="group relative bg-gradient-to-b from-amber-50 to-white rounded-2xl border border-amber-100 p-8 hover:shadow-xl hover:shadow-amber-100/50 transition-all duration-300 hover:-translate-y-1">
+              <div className="w-14 h-14 bg-gradient-to-br from-amber-400 to-amber-600 rounded-2xl flex items-center justify-center shadow-lg shadow-amber-500/20 mb-6">
+                <Sprout className="w-7 h-7 text-white" />
+              </div>
+              <h3 className="text-xl font-bold text-zinc-900 mb-3">🌾 बीज (Seeds)</h3>
+              <p className="text-zinc-600 leading-relaxed mb-4">
+                प्रमाणित और उच्च उत्पादन वाले बीज — धान, गेहूं, मक्का, सरसों और सब्जियों के बीज।
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <span className="bg-amber-100 text-amber-700 text-xs font-medium px-3 py-1 rounded-full">धान</span>
+                <span className="bg-amber-100 text-amber-700 text-xs font-medium px-3 py-1 rounded-full">गेहूं</span>
+                <span className="bg-amber-100 text-amber-700 text-xs font-medium px-3 py-1 rounded-full">मक्का</span>
+                <span className="bg-amber-100 text-amber-700 text-xs font-medium px-3 py-1 rounded-full">सरसों</span>
+              </div>
+            </div>
+
+            {/* Pesticides */}
+            <div className="group relative bg-gradient-to-b from-blue-50 to-white rounded-2xl border border-blue-100 p-8 hover:shadow-xl hover:shadow-blue-100/50 transition-all duration-300 hover:-translate-y-1">
+              <div className="w-14 h-14 bg-gradient-to-br from-blue-400 to-blue-600 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-500/20 mb-6">
+                <Bug className="w-7 h-7 text-white" />
+              </div>
+              <h3 className="text-xl font-bold text-zinc-900 mb-3">🛡️ कीटनाशक (Pesticides)</h3>
+              <p className="text-zinc-600 leading-relaxed mb-4">
+                सभी प्रकार के कीटनाशक, फफूंदनाशक और खरपतवारनाशक। फसल सुरक्षा की पूरी रेंज।
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <span className="bg-blue-100 text-blue-700 text-xs font-medium px-3 py-1 rounded-full">कीटनाशक</span>
+                <span className="bg-blue-100 text-blue-700 text-xs font-medium px-3 py-1 rounded-full">फफूंदनाशक</span>
+                <span className="bg-blue-100 text-blue-700 text-xs font-medium px-3 py-1 rounded-full">खरपतवारनाशक</span>
+              </div>
+            </div>
+          </div>
         </div>
+      </section>
 
-        {/* Breakdown List */}
-        {breakdown && breakdown.length > 0 && (
-          <div className="mt-3 space-y-1">
-            {breakdown.map((item, index) => (
-              <div key={index} className="text-xs text-zinc-600 dark:text-zinc-300 flex justify-between">
-                <span className="font-medium">{item.name}:</span>
-                <span>{item.bags} Bags ({item.mt} MT)</span>
+      {/* Why Choose Us */}
+      <section className="py-20 bg-gradient-to-b from-zinc-50 to-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl sm:text-4xl font-bold text-zinc-900">हमें क्यों चुनें?</h2>
+          </div>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {[
+              { emoji: '✅', title: 'प्रमाणित उत्पाद', desc: 'सरकार द्वारा मान्यता प्राप्त' },
+              { emoji: '💰', title: 'उचित मूल्य', desc: 'MRP पर या उससे कम' },
+              { emoji: '🚛', title: 'समय पर डिलीवरी', desc: 'खेत तक पहुँचाएं' },
+              { emoji: '🤝', title: 'विश्वसनीय सेवा', desc: 'किसानों का भरोसा' },
+            ].map((item, i) => (
+              <div key={i} className="text-center p-6 rounded-2xl bg-white border border-zinc-100 shadow-sm hover:shadow-md transition-shadow">
+                <div className="text-4xl mb-4">{item.emoji}</div>
+                <h3 className="font-bold text-zinc-900 mb-1">{item.title}</h3>
+                <p className="text-zinc-500 text-sm">{item.desc}</p>
               </div>
             ))}
           </div>
-        )}
+        </div>
+      </section>
 
-        <p className={`text-xs text-zinc-500 dark:text-zinc-400 ${breakdown ? 'mt-3' : 'mt-1'}`}>{description}</p>
-      </div>
+      {/* Contact / Footer */}
+      <footer className="bg-zinc-900 text-white py-16">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid md:grid-cols-3 gap-10">
+            <div>
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl flex items-center justify-center">
+                  <Leaf className="w-5 h-5 text-white" />
+                </div>
+                <h3 className="text-xl font-bold">Magadh Krishi Kendra</h3>
+              </div>
+              <p className="text-zinc-400 text-sm leading-relaxed">
+                GST No. - 10BKAPP5036Q1Z2<br />
+                आपका विश्वसनीय कृषि साथी
+              </p>
+            </div>
+            <div>
+              <h4 className="font-bold text-lg mb-4">संपर्क करें</h4>
+              <div className="space-y-3">
+                <div className="flex items-center gap-3 text-zinc-400">
+                  <Phone className="w-4 h-4 text-green-400" />
+                  <a href="tel:9939408261" className="hover:text-green-400 transition-colors">9939408261</a>
+                </div>
+                <div className="flex items-start gap-3 text-zinc-400">
+                  <MapPin className="w-4 h-4 text-green-400 mt-1" />
+                  <span>Near River Side, Sobh</span>
+                </div>
+                <div className="flex items-center gap-3 text-zinc-400">
+                  <Clock className="w-4 h-4 text-green-400" />
+                  <span>सोमवार - शनिवार, सुबह 8 बजे - शाम 7 बजे</span>
+                </div>
+              </div>
+            </div>
+            <div>
+              <h4 className="font-bold text-lg mb-4">त्वरित लिंक</h4>
+              <div className="space-y-2">
+                <Link href="/login" className="block text-zinc-400 hover:text-green-400 transition-colors text-sm">
+                  🔑 Admin Login
+                </Link>
+              </div>
+            </div>
+          </div>
+          <div className="mt-12 pt-8 border-t border-zinc-800 text-center text-zinc-500 text-sm">
+            &copy; {new Date().getFullYear()} Magadh Krishi Kendra. All rights reserved.
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }
