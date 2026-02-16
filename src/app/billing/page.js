@@ -1,12 +1,14 @@
 "use client";
 
 import { useState, useEffect, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import { Search, Plus, Minus, Trash2, Printer, CheckCircle } from 'lucide-react';
 import Link from 'next/link';
 import { useReactToPrint } from 'react-to-print';
 import { toast } from 'sonner';
 
 export default function BillingPage() {
+    const router = useRouter();
     const [products, setProducts] = useState([]);
     const [cart, setCart] = useState([]);
     const [searchTerm, setSearchTerm] = useState('');
@@ -130,6 +132,7 @@ export default function BillingPage() {
                 setCart([]);
                 setCustomer({ name: '', phone: '', address: '' });
                 fetchProducts(); // Refresh stock
+                router.refresh(); // Refresh dashboard and history data
             } else {
                 alert(data.error);
             }
@@ -403,6 +406,7 @@ export default function BillingPage() {
                                             value={paidAmount}
                                             onChange={(e) => setPaidAmount(e.target.value)}
                                         />
+                                        <div className="text-[9px] text-gray-500 absolute -bottom-4 right-0 whitespace-nowrap">Empty = Full Paid</div>
                                     </div>
                                     <div className="w-[13%] p-1 font-bold border-r border-black text-center bg-slate-100">G.Total</div>
                                     <div className="w-[15%] p-1 font-bold text-right pr-2 bg-slate-100">₹{calculateTotal().toFixed(2)}</div>

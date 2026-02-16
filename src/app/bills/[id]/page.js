@@ -40,8 +40,8 @@ export default function InvoicePage() {
     if (!bill) return <div className="p-8 text-center print:hidden">Bill not found</div>;
 
     return (
-        <div className="min-h-screen bg-gray-100 p-8 print:p-0 print:bg-white flex justify-center text-black">
-            <div className="max-w-3xl w-full bg-white shadow-lg p-0 print:shadow-none mb-10 print:mb-0 text-black">
+        <div className="min-h-screen bg-gray-100 p-8 print:p-0 print:bg-white flex justify-center text-black overflow-x-auto">
+            <div className="max-w-3xl w-full bg-white shadow-lg p-0 print:shadow-none mb-10 print:mb-0 text-black min-w-[800px]">
                 {/* Print Button */}
                 <div className="p-4 print:hidden flex justify-end">
                     <button
