@@ -213,8 +213,8 @@ export default function ProductsPage() {
                 </div>
             )}
 
-            <div className="rounded-md border border-zinc-200 dark:border-zinc-800 overflow-hidden">
-                <table className="w-full caption-bottom text-sm text-left">
+            <div className="rounded-md border border-zinc-200 dark:border-zinc-800 overflow-x-auto">
+                <table className="w-full caption-bottom text-sm text-left min-w-[600px]">
                     <thead className="[&_tr]:border-b bg-zinc-50 dark:bg-zinc-900">
                         <tr className="border-b transition-colors data-[state=selected]:bg-zinc-100 dark:data-[state=selected]:bg-zinc-800">
                             <th className="h-12 px-4 align-middle font-medium text-zinc-500 dark:text-zinc-400">Name</th>

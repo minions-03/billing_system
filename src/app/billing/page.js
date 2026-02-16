@@ -208,7 +208,7 @@ export default function BillingPage() {
             </div>
 
             {/* Right Side: Invoice (Paper Style) */}
-            <div className={`w-full lg:w-[800px] flex flex-col items-center overflow-y-auto ${success ? 'block' : ''}`}>
+            <div className={`w-full lg:w-[800px] flex flex-col items-center overflow-y-auto overflow-x-auto ${success ? 'block' : ''}`}>
                 {success ? (
                     <div className="bg-white dark:bg-zinc-950 p-8 rounded-xl shadow border border-zinc-200 dark:border-zinc-800 text-center w-full">
                         <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
@@ -226,7 +226,7 @@ export default function BillingPage() {
                         </div>
                     </div>
                 ) : (
-                    <div className="bg-white shadow-lg p-0 w-full text-black print:shadow-none min-h-[900px] flex flex-col border border-zinc-300">
+                    <div className="bg-white shadow-lg p-0 w-full text-black print:shadow-none min-h-[900px] min-w-[800px] flex flex-col border border-zinc-300">
                         <div className="border border-black m-4 flex-1 flex flex-col relative">
                             {/* Header */}
                             <div className="border-b border-black text-center p-2 relative h-32 select-none">
