@@ -14,10 +14,20 @@ const ProductSchema = new mongoose.Schema({
         type: Number,
         default: 0,
     },
+    bagWeight: {
+        type: Number,
+        required: [true, 'Please provide weight per bag (kg)'],
+        default: 50,
+    },
     category: {
         type: String,
         required: [true, 'Please provide a category for this product.'],
     },
 });
+
+// Force model recompilation if schema changed (for development)
+if (mongoose.models.Product) {
+    delete mongoose.models.Product;
+}
 
 export default mongoose.models.Product || mongoose.model('Product', ProductSchema);

@@ -7,10 +7,12 @@ export default function ProductsPage() {
     const [products, setProducts] = useState([]);
     const [loading, setLoading] = useState(true);
     const [showForm, setShowForm] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
     const [formData, setFormData] = useState({
         name: '',
         price: '',
         stock: '',
+        bagWeight: 50,
         category: ''
     });
     const [editingId, setEditingId] = useState(null);
@@ -35,11 +37,27 @@ export default function ProductsPage() {
 
     const handleChange = (e) => {
         const { name, value } = e.target;
+
+        if (name === 'category') {
+            // Try to extract weight from category (e.g., "45KG" -> 45)
+            const weightMatch = value.match(/(\d+)\s*k?g?/i);
+            if (weightMatch && weightMatch[1]) {
+                const weight = parseInt(weightMatch[1]);
+                if (weight >= 20 && weight <= 100) { // Reasonable limits for a bag
+                    setFormData(prev => ({ ...prev, [name]: value, bagWeight: weight }));
+                    return;
+                }
+            }
+        }
+
         setFormData(prev => ({ ...prev, [name]: value }));
     };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        if (isSubmitting) return;
+
+        setIsSubmitting(true);
         try {
             const url = editingId ? `/api/products/${editingId}` : '/api/products';
             const method = editingId ? 'PUT' : 'POST';
@@ -47,28 +65,45 @@ export default function ProductsPage() {
             const res = await fetch(url, {
                 method,
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(formData),
+                body: JSON.stringify({ ...formData, stock: Number(formData.stock), price: Number(formData.price), bagWeight: Number(formData.bagWeight || 50) }),
             });
             const data = await res.json();
 
             if (data.success) {
                 fetchProducts();
                 setShowForm(false);
-                setFormData({ name: '', price: '', stock: '', category: '' });
+                setFormData({ name: '', price: '', stock: '', bagWeight: 50, category: '' });
                 setEditingId(null);
             } else {
                 alert(data.error);
             }
         } catch (error) {
             console.error('Failed to save product', error);
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
     const handleEdit = (product) => {
+        let weight = product.bagWeight || 50;
+
+        // Auto-detect weight from category if it's currently the default 50kg
+        // This helps fix existing products where weight wasn't set yet
+        if (weight === 50 && product.category) {
+            const weightMatch = product.category.match(/(\d+)\s*k?g?/i);
+            if (weightMatch && weightMatch[1]) {
+                const detectedWeight = parseInt(weightMatch[1]);
+                if (detectedWeight >= 20 && detectedWeight <= 100) {
+                    weight = detectedWeight;
+                }
+            }
+        }
+
         setFormData({
             name: product.name,
             price: product.price,
             stock: product.stock,
+            bagWeight: weight,
             category: product.category
         });
         setEditingId(product._id);
@@ -94,7 +129,7 @@ export default function ProductsPage() {
     const cancelForm = () => {
         setShowForm(false);
         setEditingId(null);
-        setFormData({ name: '', price: '', stock: '', category: '' });
+        setFormData({ name: '', price: '', stock: '', bagWeight: 50, category: '' });
     };
 
     if (loading) return <div className="p-8 text-center">Loading products...</div>;
@@ -147,8 +182,17 @@ export default function ProductsPage() {
                         <input
                             name="stock"
                             type="number"
-                            placeholder="Stock"
+                            placeholder="Stock (Bags)"
                             value={formData.stock}
+                            onChange={handleChange}
+                            required
+                            className="flex h-10 w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm ring-offset-white file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-zinc-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-950 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-800 dark:bg-zinc-950 dark:ring-offset-zinc-950 dark:placeholder:text-zinc-400 dark:focus-visible:ring-zinc-300"
+                        />
+                        <input
+                            name="bagWeight"
+                            type="number"
+                            placeholder="Bag Weight (kg)"
+                            value={formData.bagWeight}
                             onChange={handleChange}
                             required
                             className="flex h-10 w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm ring-offset-white file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-zinc-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-950 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-800 dark:bg-zinc-950 dark:ring-offset-zinc-950 dark:placeholder:text-zinc-400 dark:focus-visible:ring-zinc-300"
@@ -157,8 +201,12 @@ export default function ProductsPage() {
                             <button type="button" onClick={cancelForm} className="px-4 py-2 text-sm font-medium text-zinc-700 bg-white border border-zinc-300 rounded-md hover:bg-zinc-50 dark:bg-zinc-950 dark:text-zinc-300 dark:border-zinc-800 dark:hover:bg-zinc-800">
                                 Cancel
                             </button>
-                            <button type="submit" className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-zinc-900 rounded-md hover:bg-zinc-800 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-zinc-200">
-                                <Save className="w-4 h-4 mr-2" /> Save
+                            <button
+                                type="submit"
+                                disabled={isSubmitting}
+                                className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-zinc-900 rounded-md hover:bg-zinc-800 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-zinc-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                {isSubmitting ? 'Saving...' : <><Save className="w-4 h-4 mr-2" /> Save</>}
                             </button>
                         </div>
                     </form>
@@ -188,7 +236,10 @@ export default function ProductsPage() {
                                     <td className="p-4 align-middle text-zinc-500">{product.category}</td>
                                     <td className="p-4 align-middle text-right">₹{product.price.toFixed(2)}</td>
                                     <td className={`p-4 align-middle text-right font-medium ${product.stock < 5 ? 'text-red-500' : 'text-zinc-500'}`}>
-                                        {product.stock}
+                                        <div>{product.stock} Bags</div>
+                                        <div className="text-xs opacity-70">
+                                            {((product.stock * (product.bagWeight || 50)) / 1000).toFixed(2)} MT
+                                        </div>
                                     </td>
                                     <td className="p-4 align-middle text-right">
                                         <button onClick={() => handleEdit(product)} className="mr-2 p-2 hover:bg-zinc-100 rounded-md dark:hover:bg-zinc-800 text-zinc-500"><Edit2 className="w-4 h-4" /></button>

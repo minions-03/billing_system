@@ -11,6 +11,103 @@ async function getStats() {
   const lowStockCount = await Product.countDocuments({ stock: { $lt: 5 } });
   const billCount = await Bill.countDocuments();
 
+  // Calculate total available stock (Bags & MT) and breakdown
+  const products = await Product.find({});
+  let totalStockBags = 0;
+  let totalStockMT = 0;
+  const availableStockBreakdown = [];
+
+  products.forEach(product => {
+    totalStockBags += product.stock;
+    const weight = product.bagWeight || 50;
+    const mt = (product.stock * weight) / 1000;
+    totalStockMT += mt;
+    if (product.stock > 0) {
+      availableStockBreakdown.push({
+        name: product.name,
+        bags: product.stock,
+        mt: mt.toFixed(2)
+      });
+    }
+  });
+
+  // Calculate sold stock today and breakdown
+  const startOfDay = new Date();
+  startOfDay.setHours(0, 0, 0, 0);
+
+  const todayBills = await Bill.find({
+    createdAt: { $gte: startOfDay }
+  }).populate('items.productId');
+
+  let soldTodayBags = 0;
+  let soldTodayMT = 0;
+  const soldMap = {};
+
+  todayBills.forEach(bill => {
+    bill.items.forEach(item => {
+      soldTodayBags += item.quantity;
+      // Use product's current weight if available, else default to 50
+      const weight = item.productId?.bagWeight || 50;
+      const mt = (item.quantity * weight) / 1000;
+      soldTodayMT += mt;
+
+      const prodName = item.productName || item.productId?.name || 'Unknown';
+      if (!soldMap[prodName]) {
+        soldMap[prodName] = { bags: 0, mt: 0 };
+      }
+      soldMap[prodName].bags += item.quantity;
+      soldMap[prodName].mt += mt;
+    });
+  });
+
+  const soldTodayBreakdown = Object.entries(soldMap).map(([name, data]) => ({
+    name,
+    bags: data.bags,
+    mt: data.mt.toFixed(2)
+  }));
+
+
+  // Calculate total sold stock (All Time)
+  const totalSoldAgg = await Bill.aggregate([
+    { $unwind: "$items" },
+    {
+      $lookup: {
+        from: "products",
+        localField: "items.productId",
+        foreignField: "_id",
+        as: "product"
+      }
+    },
+    {
+      $project: {
+        name: { $ifNull: ["$items.productName", "Unknown"] },
+        quantity: "$items.quantity",
+        weight: { $ifNull: [{ $arrayElemAt: ["$product.bagWeight", 0] }, 50] }
+      }
+    },
+    {
+      $group: {
+        _id: "$name",
+        totalBags: { $sum: "$quantity" },
+        totalMT: {
+          $sum: { $divide: [{ $multiply: ["$quantity", "$weight"] }, 1000] }
+        }
+      }
+    }
+  ]);
+
+  let totalSoldBagsAllTime = 0;
+  let totalSoldMTAllTime = 0;
+  const totalSoldBreakdown = totalSoldAgg.map(item => {
+    totalSoldBagsAllTime += item.totalBags;
+    totalSoldMTAllTime += item.totalMT;
+    return {
+      name: item._id,
+      bags: item.totalBags,
+      mt: item.totalMT.toFixed(2)
+    };
+  });
+
   // Calculate total revenue
   const revenueData = await Bill.aggregate([
     {
@@ -33,6 +130,15 @@ async function getStats() {
     lowStockCount,
     billCount,
     totalRevenue,
+    totalStockBags,
+    totalStockMT,
+    availableStockBreakdown,
+    soldTodayBags,
+    soldTodayMT,
+    soldTodayBreakdown,
+    totalSoldBagsAllTime,
+    totalSoldMTAllTime,
+    totalSoldBreakdown,
     recentBills: JSON.parse(JSON.stringify(recentBills)), // ID serialization
   };
 }
@@ -56,9 +162,33 @@ export default async function Home() {
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card title="Total Products" value={stats.productCount} icon={Package} description="Active products in inventory" />
-        <Card title="Low Stock Alerts" value={stats.lowStockCount} icon={AlertTriangle} description="Products with < 5 items" alert={stats.lowStockCount > 0} />
+        <Card
+          title="Available Stock"
+          value={`${stats.totalStockBags} Bags`}
+          subValue={`(${stats.totalStockMT.toFixed(2)} MT)`}
+          breakdown={stats.availableStockBreakdown}
+          icon={Package}
+          description="Total stock in hand"
+        />
+        <Card
+          title="Sold Today"
+          value={`${stats.soldTodayBags} Bags`}
+          subValue={`(${stats.soldTodayMT.toFixed(2)} MT)`}
+          breakdown={stats.soldTodayBreakdown}
+          icon={TrendingUp}
+          description="Sales for today"
+        />
+        <Card
+          title="Total Sold Stock"
+          value={`${stats.totalSoldBagsAllTime} Bags`}
+          subValue={`(${stats.totalSoldMTAllTime.toFixed(2)} MT)`}
+          breakdown={stats.totalSoldBreakdown}
+          icon={TrendingUp}
+          description="All-time sales"
+        />
         <Card title="Total Bills" value={stats.billCount} icon={FileText} description="Total invoices generated" />
         <Card title="Total Revenue" value={`₹${stats.totalRevenue.toFixed(2)}`} icon={TrendingUp} description="Lifetime revenue" />
+        <Card title="Low Stock Alerts" value={stats.lowStockCount} icon={AlertTriangle} description="Products with < 5 items" alert={stats.lowStockCount > 0} />
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
@@ -101,7 +231,8 @@ export default async function Home() {
   );
 }
 
-function Card({ title, value, icon: Icon, description, alert }) {
+
+function Card({ title, value, subValue, breakdown, icon: Icon, description, alert }) {
   return (
     <div className={`rounded-xl border bg-white text-zinc-950 shadow dark:bg-zinc-950 dark:text-zinc-50 ${alert ? 'border-red-500' : 'border-zinc-200 dark:border-zinc-800'}`}>
       <div className="p-6 flex flex-row items-center justify-between space-y-0 pb-2">
@@ -109,8 +240,24 @@ function Card({ title, value, icon: Icon, description, alert }) {
         <Icon className={`h-4 w-4 ${alert ? 'text-red-500' : 'text-zinc-500 dark:text-zinc-400'}`} />
       </div>
       <div className="p-6 pt-0">
-        <div className={`text-2xl font-bold ${alert ? 'text-red-600' : ''}`}>{value}</div>
-        <p className="text-xs text-zinc-500 dark:text-zinc-400">{description}</p>
+        <div className={`text-2xl font-bold ${alert ? 'text-red-600' : ''}`}>
+          {value}
+          {subValue && <span className="ml-2 text-lg font-normal text-zinc-500 dark:text-zinc-400">{subValue}</span>}
+        </div>
+
+        {/* Breakdown List */}
+        {breakdown && breakdown.length > 0 && (
+          <div className="mt-3 space-y-1">
+            {breakdown.map((item, index) => (
+              <div key={index} className="text-xs text-zinc-600 dark:text-zinc-300 flex justify-between">
+                <span className="font-medium">{item.name}:</span>
+                <span>{item.bags} Bags ({item.mt} MT)</span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <p className={`text-xs text-zinc-500 dark:text-zinc-400 ${breakdown ? 'mt-3' : 'mt-1'}`}>{description}</p>
       </div>
     </div>
   );
