@@ -17,6 +17,7 @@ export default function BillingPage() {
 
     const [success, setSuccess] = useState(false);
     const [lastBillId, setLastBillId] = useState(null);
+    const [lastBillTotal, setLastBillTotal] = useState(0);
     const componentRef = useRef();
 
     const quickFilters = ["UREA", "DAP", "MOP", "ATS"];
@@ -122,6 +123,7 @@ export default function BillingPage() {
             if (data.success) {
                 setSuccess(true);
                 setLastBillId(data.data._id);
+                setLastBillTotal(data.data.totalAmount);
                 toast.success('Submitted Successfully');
                 // Don't clear cart immediately if printing? Usually clear after success.
                 // Keeping it populated might be confusing. Let's clear and show success message.
@@ -211,7 +213,7 @@ export default function BillingPage() {
                     <div className="bg-white dark:bg-zinc-950 p-8 rounded-xl shadow border border-zinc-200 dark:border-zinc-800 text-center w-full">
                         <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
                         <h2 className="text-2xl font-bold mb-2">Bill Created Successfully!</h2>
-                        <p className="text-zinc-500 mb-6">Total Amount: ₹{calculateTotal().toFixed(2)}</p> {/* Note: Total will be 0 as cart cleared. Maybe pass total */}
+                        <p className="text-zinc-500 mb-6">Total Amount: ₹{lastBillTotal.toFixed(2)}</p>
                         <div className="flex gap-4 justify-center">
                             {lastBillId && (
                                 <Link href={`/bills/${lastBillId}`} target="_blank" className="flex items-center gap-2 bg-zinc-900 text-white px-6 py-3 rounded-md hover:bg-zinc-800 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-zinc-200">
