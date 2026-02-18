@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ChevronDown, ChevronUp, FileText, Printer, Search, Filter, RefreshCcw } from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'sonner';
@@ -138,8 +138,8 @@ export default function HistoryPage() {
                         ) : (
 
                             filteredBills.map((bill) => (
-                                <>
-                                    <tr key={bill._id} className="border-b transition-colors hover:bg-zinc-100/50 data-[state=selected]:bg-zinc-100 dark:hover:bg-zinc-800/50 dark:data-[state=selected]:bg-zinc-800">
+                                <React.Fragment key={bill._id}>
+                                    <tr className="border-b transition-colors hover:bg-zinc-100/50 data-[state=selected]:bg-zinc-100 dark:hover:bg-zinc-800/50 dark:data-[state=selected]:bg-zinc-800">
                                         <td className="p-4 align-middle font-medium">#{bill.billNumber ? String(bill.billNumber).padStart(4, '0') : bill._id.slice(-4)}</td>
                                         <td className="p-4 align-middle">{new Date(bill.createdAt).toLocaleDateString()}</td>
                                         <td className="p-4 align-middle font-medium">
@@ -223,7 +223,7 @@ export default function HistoryPage() {
                                             </td>
                                         </tr>
                                     )}
-                                </>
+                                </React.Fragment>
                             ))
                         )}
                     </tbody>
