@@ -79,8 +79,8 @@ export default function InvoicePage() {
                                     <span className="border-b border-dotted border-black px-1 font-medium">{bill.customerPhone}</span>
                                 </div>
                             </div>
-                            <div className="mt-1 flex gap-2">
-                                <span className="font-bold">Name :</span>
+                            <div className="mt-1 flex items-center gap-2">
+                                <span className="font-bold shrink-0">Name :</span>
                                 <span className="border-b border-dotted border-black flex-1 text-black">{bill.customerName}</span>
                             </div>
                         </div>
@@ -89,9 +89,9 @@ export default function InvoicePage() {
                                 <span className="font-bold">Date :</span>
                                 <span className="border-b border-dotted border-black flex-1">{new Date(bill.createdAt).toLocaleDateString()}</span>
                             </div>
-                            <div className="mt-1 flex gap-2">
-                                <span className="font-bold">Address :</span>
-                                <span className="border-b border-dotted border-black flex-1 relative top-1">{bill.customerAddress}</span>
+                            <div className="mt-1 flex items-center gap-2">
+                                <span className="font-bold shrink-0">Address :</span>
+                                <span className="border-b border-dotted border-black flex-1">{bill.customerAddress}</span>
                             </div>
                         </div>
                     </div>

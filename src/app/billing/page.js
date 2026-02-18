@@ -12,7 +12,7 @@ export default function BillingPage() {
     const [products, setProducts] = useState([]);
     const [cart, setCart] = useState([]);
     const [searchTerm, setSearchTerm] = useState('');
-    const [customer, setCustomer] = useState({ name: '', phone: '', address: '' });
+    const [customer, setCustomer] = useState({ name: '', phone: '', address: '', type: 'RETAILER' });
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
     const [paidAmount, setPaidAmount] = useState('');
@@ -22,7 +22,6 @@ export default function BillingPage() {
     const [lastBillTotal, setLastBillTotal] = useState(0);
     const componentRef = useRef();
 
-    const quickFilters = ["UREA", "DAP", "MOP", "ATS"];
 
     const handlePrint = useReactToPrint({
         content: () => componentRef.current,
@@ -113,7 +112,8 @@ export default function BillingPage() {
                 })),
                 totalAmount: calculateTotal(),
                 paidAmount: currentPaid,
-                dueAmount: currentDue
+                dueAmount: currentDue,
+                customerType: customer.type
             };
 
             const res = await fetch('/api/bills', {
@@ -150,7 +150,7 @@ export default function BillingPage() {
         setSuccess(false);
         setLastBillId(null);
         setCart([]);
-        setCustomer({ name: '', phone: '', address: '' });
+        setCustomer({ name: '', phone: '', address: '', type: 'RETAILER' });
         setPaidAmount('');
     };
 
@@ -179,20 +179,6 @@ export default function BillingPage() {
                     />
                 </div>
 
-                <div className="flex gap-2 flex-wrap">
-                    {quickFilters.map(filter => (
-                        <button
-                            key={filter}
-                            onClick={() => setSearchTerm(searchTerm === filter ? '' : filter)}
-                            className={`px-3 py-1 text-xs font-medium rounded-full border transition-colors ${searchTerm === filter
-                                ? 'bg-zinc-900 text-white border-zinc-900 dark:bg-zinc-100 dark:text-zinc-900 dark:border-zinc-100'
-                                : 'bg-white text-zinc-700 border-zinc-300 hover:bg-zinc-100 dark:bg-zinc-900 dark:text-zinc-300 dark:border-zinc-700 dark:hover:bg-zinc-800'
-                                }`}
-                        >
-                            {filter}
-                        </button>
-                    ))}
-                </div>
 
                 <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4 overflow-y-auto p-1 pb-20 lg:pb-1">
                     {filteredProducts.map(product => (
@@ -286,7 +272,7 @@ export default function BillingPage() {
                             </div>
 
                             {/* Bill Details Inputs */}
-                            <div className="flex border-b border-black text-xs relative h-16">
+                            <div className="flex border-b border-black text-xs relative">
                                 <div className="w-1/2 p-2 relative border-r border-black">
                                     <div className="flex justify-between items-center mb-1">
                                         <div className="flex items-center gap-2">
@@ -305,7 +291,7 @@ export default function BillingPage() {
                                         </div>
                                     </div>
                                     <div className="flex items-center gap-2">
-                                        <span className="font-bold w-10">Name :</span>
+                                        <span className="font-bold w-10 shrink-0">Name:</span>
                                         <input
                                             type="text"
                                             className="flex-1 border-b border-dotted border-black outline-none px-1 bg-transparent font-medium uppercase"
@@ -315,14 +301,25 @@ export default function BillingPage() {
                                             placeholder="Customer Name..."
                                         />
                                     </div>
+                                    <div className="flex items-center gap-2 mt-1">
+                                        <span className="font-bold w-10 shrink-0">Type:</span>
+                                        <select
+                                            value={customer.type}
+                                            onChange={(e) => setCustomer({ ...customer, type: e.target.value })}
+                                            className="border-b border-dotted border-black outline-none bg-transparent font-medium text-xs py-0"
+                                        >
+                                            <option value="RETAILER">Retailer</option>
+                                            <option value="WHOLESALER">Wholesaler</option>
+                                        </select>
+                                    </div>
                                 </div>
                                 <div className="w-1/2 p-2 relative">
                                     <div className="flex gap-2 mb-1">
                                         <span className="font-bold w-12">Date :</span>
                                         <span className="border-b border-dotted border-black flex-1">{new Date().toLocaleDateString()}</span>
                                     </div>
-                                    <div className="flex gap-2">
-                                        <span className="font-bold w-12">Address :</span>
+                                    <div className="flex items-center gap-2">
+                                        <span className="font-bold w-12 shrink-0">Address:</span>
                                         <input
                                             type="text"
                                             className="flex-1 border-b border-dotted border-black outline-none px-1 bg-transparent font-medium"

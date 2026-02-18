@@ -12,6 +12,11 @@ const BillSchema = new mongoose.Schema({
     },
     customerPhone: String,
     customerAddress: String,
+    customerType: {
+        type: String,
+        enum: ['RETAILER', 'WHOLESALER'],
+        default: 'RETAILER'
+    },
     items: [
         {
             productId: {

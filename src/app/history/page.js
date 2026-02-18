@@ -11,6 +11,7 @@ export default function HistoryPage() {
     const [expandedId, setExpandedId] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
     const [filter, setFilter] = useState('ALL'); // ALL, PAID, DUE
+    const [typeFilter, setTypeFilter] = useState('ALL'); // ALL, RETAILER, WHOLESALER
     const [paymentAmount, setPaymentAmount] = useState('');
     const [updatingBillId, setUpdatingBillId] = useState(null);
 
@@ -77,8 +78,12 @@ export default function HistoryPage() {
         if (!matchesSearch) return false;
 
         const isDue = (bill.dueAmount || 0) > 0;
-        if (filter === 'PAID') return !isDue;
-        if (filter === 'DUE') return isDue;
+        if (filter === 'PAID' && isDue) return false;
+        if (filter === 'DUE' && !isDue) return false;
+
+        if (typeFilter === 'RETAILER' && bill.customerType !== 'RETAILER') return false;
+        if (typeFilter === 'WHOLESALER' && bill.customerType !== 'WHOLESALER') return false;
+
         return true;
     });
 
@@ -89,25 +94,17 @@ export default function HistoryPage() {
             <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
                 <h1 className="text-3xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100">History</h1>
 
-                <div className="flex gap-2">
-                    <button
-                        onClick={() => setFilter('ALL')}
-                        className={`px-3 py-1 text-sm rounded-md border ${filter === 'ALL' ? 'bg-zinc-900 text-white border-zinc-900' : 'bg-white text-zinc-700 border-zinc-300'}`}
-                    >
-                        All
-                    </button>
-                    <button
-                        onClick={() => setFilter('PAID')}
-                        className={`px-3 py-1 text-sm rounded-md border ${filter === 'PAID' ? 'bg-green-600 text-white border-green-600' : 'bg-white text-zinc-700 border-zinc-300'}`}
-                    >
-                        Paid
-                    </button>
-                    <button
-                        onClick={() => setFilter('DUE')}
-                        className={`px-3 py-1 text-sm rounded-md border ${filter === 'DUE' ? 'bg-red-600 text-white border-red-600' : 'bg-white text-zinc-700 border-zinc-300'}`}
-                    >
-                        Dues
-                    </button>
+                <div className="flex flex-col gap-2">
+                    <div className="flex gap-2">
+                        <button onClick={() => setFilter('ALL')} className={`px-3 py-1 text-sm rounded-md border ${filter === 'ALL' ? 'bg-zinc-900 text-white border-zinc-900 dark:bg-zinc-100 dark:text-zinc-900' : 'bg-white text-zinc-700 border-zinc-300 dark:bg-zinc-900 dark:text-zinc-300 dark:border-zinc-700'}`}>All</button>
+                        <button onClick={() => setFilter('PAID')} className={`px-3 py-1 text-sm rounded-md border ${filter === 'PAID' ? 'bg-green-600 text-white border-green-600' : 'bg-white text-zinc-700 border-zinc-300 dark:bg-zinc-900 dark:text-zinc-300 dark:border-zinc-700'}`}>Paid</button>
+                        <button onClick={() => setFilter('DUE')} className={`px-3 py-1 text-sm rounded-md border ${filter === 'DUE' ? 'bg-red-600 text-white border-red-600' : 'bg-white text-zinc-700 border-zinc-300 dark:bg-zinc-900 dark:text-zinc-300 dark:border-zinc-700'}`}>Dues</button>
+                    </div>
+                    <div className="flex gap-2">
+                        <button onClick={() => setTypeFilter('ALL')} className={`px-3 py-1 text-sm rounded-md border ${typeFilter === 'ALL' ? 'bg-zinc-900 text-white border-zinc-900 dark:bg-zinc-100 dark:text-zinc-900' : 'bg-white text-zinc-700 border-zinc-300 dark:bg-zinc-900 dark:text-zinc-300 dark:border-zinc-700'}`}>All Types</button>
+                        <button onClick={() => setTypeFilter('RETAILER')} className={`px-3 py-1 text-sm rounded-md border ${typeFilter === 'RETAILER' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-zinc-700 border-zinc-300 dark:bg-zinc-900 dark:text-zinc-300 dark:border-zinc-700'}`}>Retailer</button>
+                        <button onClick={() => setTypeFilter('WHOLESALER')} className={`px-3 py-1 text-sm rounded-md border ${typeFilter === 'WHOLESALER' ? 'bg-purple-600 text-white border-purple-600' : 'bg-white text-zinc-700 border-zinc-300 dark:bg-zinc-900 dark:text-zinc-300 dark:border-zinc-700'}`}>Wholesaler</button>
+                    </div>
                 </div>
 
                 <div className="relative w-64">
@@ -148,6 +145,10 @@ export default function HistoryPage() {
                                         <td className="p-4 align-middle font-medium">
                                             <div>{bill.customerName}</div>
                                             <div className="text-xs text-zinc-500">{bill.customerPhone}</div>
+                                            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${bill.customerType === 'WHOLESALER'
+                                                ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400'
+                                                : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
+                                                }`}>{bill.customerType === 'WHOLESALER' ? 'Wholesaler' : 'Retailer'}</span>
                                         </td>
                                         <td className="p-4 align-middle">{bill.items.length} items</td>
                                         <td className="p-4 align-middle text-right font-medium">

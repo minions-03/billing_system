@@ -12,8 +12,7 @@ export default function ProductsPage() {
         name: '',
         price: '',
         stock: '',
-        bagWeight: 50,
-        category: ''
+        bagWeight: ''
     });
     const [editingId, setEditingId] = useState(null);
 
@@ -37,13 +36,6 @@ export default function ProductsPage() {
 
     const handleChange = (e) => {
         const { name, value } = e.target;
-
-        if (name === 'category') {
-            const weight = parseInt(value) || 50;
-            setFormData(prev => ({ ...prev, [name]: value, bagWeight: weight }));
-            return;
-        }
-
         setFormData(prev => ({ ...prev, [name]: value }));
     };
 
@@ -59,14 +51,14 @@ export default function ProductsPage() {
             const res = await fetch(url, {
                 method,
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ ...formData, stock: Number(formData.stock), price: Number(formData.price), bagWeight: Number(formData.bagWeight || 50) }),
+                body: JSON.stringify({ ...formData, stock: Number(formData.stock), price: Number(formData.price), bagWeight: Number(formData.bagWeight), category: String(formData.bagWeight) + 'KG' }),
             });
             const data = await res.json();
 
             if (data.success) {
                 fetchProducts();
                 setShowForm(false);
-                setFormData({ name: '', price: '', stock: '', bagWeight: 50, category: '' });
+                setFormData({ name: '', price: '', stock: '', bagWeight: '' });
                 setEditingId(null);
             } else {
                 alert(data.error);
@@ -79,26 +71,12 @@ export default function ProductsPage() {
     };
 
     const handleEdit = (product) => {
-        let weight = product.bagWeight || 50;
-
-        // Auto-detect weight from category if it's currently the default 50kg
-        // This helps fix existing products where weight wasn't set yet
-        if (weight === 50 && product.category) {
-            const weightMatch = product.category.match(/(\d+)\s*k?g?/i);
-            if (weightMatch && weightMatch[1]) {
-                const detectedWeight = parseInt(weightMatch[1]);
-                if (detectedWeight >= 20 && detectedWeight <= 100) {
-                    weight = detectedWeight;
-                }
-            }
-        }
-
+        const weight = product.bagWeight || parseInt(product.category) || 50;
         setFormData({
             name: product.name,
             price: product.price,
             stock: product.stock,
             bagWeight: weight,
-            category: product.category
         });
         setEditingId(product._id);
         setShowForm(true);
@@ -123,7 +101,7 @@ export default function ProductsPage() {
     const cancelForm = () => {
         setShowForm(false);
         setEditingId(null);
-        setFormData({ name: '', price: '', stock: '', bagWeight: 50, category: '' });
+        setFormData({ name: '', price: '', stock: '', bagWeight: '' });
     };
 
     if (loading) return <div className="p-8 text-center">Loading products...</div>;
@@ -156,9 +134,10 @@ export default function ProductsPage() {
                             className="flex h-10 w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm ring-offset-white file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-zinc-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-950 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-800 dark:bg-zinc-950 dark:ring-offset-zinc-950 dark:placeholder:text-zinc-400 dark:focus-visible:ring-zinc-300"
                         />
                         <input
-                            name="category"
+                            name="bagWeight"
+                            type="number"
                             placeholder="Quantity(in kg)"
-                            value={formData.category}
+                            value={formData.bagWeight}
                             onChange={handleChange}
                             required
                             className="flex h-10 w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm ring-offset-white file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-zinc-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-950 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-800 dark:bg-zinc-950 dark:ring-offset-zinc-950 dark:placeholder:text-zinc-400 dark:focus-visible:ring-zinc-300"
