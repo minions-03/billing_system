@@ -39,15 +39,9 @@ export default function ProductsPage() {
         const { name, value } = e.target;
 
         if (name === 'category') {
-            // Try to extract weight from category (e.g., "45KG" -> 45)
-            const weightMatch = value.match(/(\d+)\s*k?g?/i);
-            if (weightMatch && weightMatch[1]) {
-                const weight = parseInt(weightMatch[1]);
-                if (weight >= 20 && weight <= 100) { // Reasonable limits for a bag
-                    setFormData(prev => ({ ...prev, [name]: value, bagWeight: weight }));
-                    return;
-                }
-            }
+            const weight = parseInt(value) || 50;
+            setFormData(prev => ({ ...prev, [name]: value, bagWeight: weight }));
+            return;
         }
 
         setFormData(prev => ({ ...prev, [name]: value }));
@@ -163,7 +157,7 @@ export default function ProductsPage() {
                         />
                         <input
                             name="category"
-                            placeholder="Category"
+                            placeholder="Quantity(in kg)"
                             value={formData.category}
                             onChange={handleChange}
                             required
@@ -184,15 +178,6 @@ export default function ProductsPage() {
                             type="number"
                             placeholder="Stock (Bags)"
                             value={formData.stock}
-                            onChange={handleChange}
-                            required
-                            className="flex h-10 w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm ring-offset-white file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-zinc-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-950 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-800 dark:bg-zinc-950 dark:ring-offset-zinc-950 dark:placeholder:text-zinc-400 dark:focus-visible:ring-zinc-300"
-                        />
-                        <input
-                            name="bagWeight"
-                            type="number"
-                            placeholder="Bag Weight (kg)"
-                            value={formData.bagWeight}
                             onChange={handleChange}
                             required
                             className="flex h-10 w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm ring-offset-white file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-zinc-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-950 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-800 dark:bg-zinc-950 dark:ring-offset-zinc-950 dark:placeholder:text-zinc-400 dark:focus-visible:ring-zinc-300"

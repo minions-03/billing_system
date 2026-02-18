@@ -100,7 +100,7 @@ export default function InvoicePage() {
                     <div className="flex border-b border-black text-sm font-bold bg-slate-200 print:bg-slate-200 text-black">
                         <div className="w-[10%] p-1 border-r border-black text-center">S.No.</div>
                         <div className="w-[50%] p-1 border-r border-black text-center">Particulars</div>
-                        <div className="w-[15%] p-1 border-r border-black text-center">Qty.</div>
+                        <div className="w-[15%] p-1 border-r border-black text-center">Qty(Bags)</div>
                         <div className="w-[10%] p-1 border-r border-black text-center">Rate</div>
                         <div className="w-[15%] p-1 text-center">Amount</div>
                     </div>
@@ -121,7 +121,7 @@ export default function InvoicePage() {
                             <div key={index} className="flex z-10 relative">
                                 <div className="w-[10%] p-1 text-center">{index + 1}</div>
                                 <div className="w-[50%] p-1 pl-2">{item.productName}</div>
-                                <div className="w-[15%] p-1 text-center">{item.quantity}</div>
+                                <div className="w-[15%] p-1 text-center">{item.productId?.bagWeight || parseInt(item.productId?.category) || 50}kg × {item.quantity}</div>
                                 <div className="w-[10%] p-1 text-center">{item.price}</div>
                                 <div className="w-[15%] p-1 text-right pr-2">{(item.price * item.quantity).toFixed(2)}</div>
                             </div>

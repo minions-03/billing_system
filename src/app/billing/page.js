@@ -59,12 +59,14 @@ export default function BillingPage() {
                         : item
                 );
             }
+            const weight = product.bagWeight || parseInt(product.category) || 50;
             return [...prev, {
                 productId: product._id,
                 name: product.name,
                 price: product.price,
                 quantity: 1,
-                maxStock: product.stock
+                maxStock: product.stock,
+                bagWeight: weight
             }];
         });
     };
@@ -336,7 +338,7 @@ export default function BillingPage() {
                             <div className="flex border-b border-black text-xs font-bold bg-slate-100">
                                 <div className="w-[8%] p-1 border-r border-black text-center">S.No.</div>
                                 <div className="w-[52%] p-1 border-r border-black text-center">Particulars</div>
-                                <div className="w-[12%] p-1 border-r border-black text-center">Qty.</div>
+                                <div className="w-[12%] p-1 border-r border-black text-center">Qty(Bags)</div>
                                 <div className="w-[13%] p-1 border-r border-black text-center">Rate</div>
                                 <div className="w-[15%] p-1 text-center">Amount</div>
                             </div>
@@ -365,7 +367,7 @@ export default function BillingPage() {
                                             </div>
                                             <div className="w-[12%] p-1 text-center py-2 flex items-center justify-center gap-1">
                                                 <button onClick={() => updateQuantity(item.productId, item.quantity - 1)} className="hover:text-red-500 text-gray-400 opacity-0 group-hover:opacity-100 lg:opacity-0 opacity-100"><Minus className="w-3 h-3" /></button>
-                                                <span>{item.quantity}</span>
+                                                <span>{item.bagWeight}kg × {item.quantity}</span>
                                                 <button onClick={() => updateQuantity(item.productId, item.quantity + 1)} className="hover:text-green-500 text-gray-400 opacity-0 group-hover:opacity-100 lg:opacity-0 opacity-100"><Plus className="w-3 h-3" /></button>
                                             </div>
                                             <div className="w-[13%] p-1 text-center py-2">₹{item.price}</div>
@@ -406,7 +408,7 @@ export default function BillingPage() {
                                             value={paidAmount}
                                             onChange={(e) => setPaidAmount(e.target.value)}
                                         />
-                                        <div className="text-[9px] text-gray-500 absolute -bottom-4 right-0 whitespace-nowrap">Empty = Full Paid</div>
+
                                     </div>
                                     <div className="w-[13%] p-1 font-bold border-r border-black text-center bg-slate-100">G.Total</div>
                                     <div className="w-[15%] p-1 font-bold text-right pr-2 bg-slate-100">₹{calculateTotal().toFixed(2)}</div>
