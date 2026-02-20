@@ -17,6 +17,18 @@ const BillSchema = new mongoose.Schema({
         enum: ['RETAILER', 'WHOLESALER'],
         default: 'RETAILER'
     },
+    // Wholesaler-specific fields
+    customerGstin: String,
+    customerCst: String,
+    customerTin: String,
+    hsnCode: String,
+    vehicleNo: String,
+    supplierRef: String,
+    bookNo: String,
+    cgst: { type: Number, default: 0 },
+    sgst: { type: Number, default: 0 },
+    igst: { type: Number, default: 0 },
+
     items: [
         {
             productId: {
@@ -24,7 +36,8 @@ const BillSchema = new mongoose.Schema({
                 ref: 'Product',
                 required: true,
             },
-            productName: String, // Store name in case product is deleted
+            productName: String,
+            hsnCode: String,
             quantity: {
                 type: Number,
                 required: true,
@@ -54,7 +67,6 @@ const BillSchema = new mongoose.Schema({
     },
 });
 
-// Force recompile model to ensure new fields are picked up
 if (mongoose.models.Bill) {
     delete mongoose.models.Bill;
 }

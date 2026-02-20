@@ -5,12 +5,51 @@ import { NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
+export async function GET(request) {
     await dbConnect();
 
     try {
-        const bills = await Bill.find({}).sort({ createdAt: -1 });
-        return NextResponse.json({ success: true, data: bills });
+        const { searchParams } = new URL(request.url);
+        const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10));
+        const limit = parseInt(searchParams.get('limit') || '10', 10);
+        const search = searchParams.get('search') || '';
+        const filter = searchParams.get('filter') || 'ALL';       // ALL | PAID | DUE
+        const typeFilter = searchParams.get('typeFilter') || 'ALL'; // ALL | RETAILER | WHOLESALER
+
+        // Build query
+        const query = {};
+
+        if (search) {
+            const orConditions = [
+                { customerName: { $regex: search, $options: 'i' } },
+            ];
+            const numericSearch = Number(search);
+            if (!isNaN(numericSearch) && search.trim() !== '') {
+                orConditions.push({ billNumber: numericSearch });
+            }
+            query.$or = orConditions;
+        }
+
+        if (typeFilter !== 'ALL') {
+            query.customerType = typeFilter;
+        }
+
+        if (filter === 'PAID') {
+            query.$and = [...(query.$and || []), { $or: [{ dueAmount: { $lte: 0 } }, { dueAmount: { $exists: false } }] }];
+        } else if (filter === 'DUE') {
+            query.$and = [...(query.$and || []), { dueAmount: { $gt: 0 } }];
+        }
+
+        const total = await Bill.countDocuments(query);
+        const totalPages = Math.ceil(total / limit) || 1;
+        const skip = (page - 1) * limit;
+
+        const bills = await Bill.find(query)
+            .sort({ createdAt: -1 })
+            .skip(skip)
+            .limit(limit);
+
+        return NextResponse.json({ success: true, data: bills, totalPages, currentPage: page, total });
     } catch (error) {
         return NextResponse.json({ success: false, error: error.message }, { status: 400 });
     }

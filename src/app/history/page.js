@@ -1,30 +1,65 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
-import { ChevronDown, ChevronUp, FileText, Printer, Search, Filter, RefreshCcw } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { ChevronDown, ChevronUp, FileText, Printer, Search, ChevronLeft, ChevronRight } from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'sonner';
+
+const LIMIT = 10;
 
 export default function HistoryPage() {
     const [bills, setBills] = useState([]);
     const [loading, setLoading] = useState(true);
     const [expandedId, setExpandedId] = useState(null);
-    const [searchTerm, setSearchTerm] = useState('');
-    const [filter, setFilter] = useState('ALL'); // ALL, PAID, DUE
-    const [typeFilter, setTypeFilter] = useState('ALL'); // ALL, RETAILER, WHOLESALER
+
+    // Search & filters
+    const [searchInput, setSearchInput] = useState('');   // what the user types
+    const [searchTerm, setSearchTerm] = useState('');     // value sent to API on Enter
+    const [filter, setFilter] = useState('ALL');           // ALL | PAID | DUE
+    const [typeFilter, setTypeFilter] = useState('ALL');   // ALL | RETAILER | WHOLESALER
+
+    // Pagination
+    const [page, setPage] = useState(1);
+    const [totalPages, setTotalPages] = useState(1);
+
+    // Payment update
     const [paymentAmount, setPaymentAmount] = useState('');
     const [updatingBillId, setUpdatingBillId] = useState(null);
 
+    // Trigger search on Enter key
+    const handleSearchKeyDown = (e) => {
+        if (e.key === 'Enter') {
+            setSearchTerm(searchInput);
+            setPage(1);
+        }
+    };
+
+    // Reset page when filters change
+    useEffect(() => {
+        setPage(1);
+    }, [filter, typeFilter]);
+
+    // Fetch whenever page, searchTerm, filter, or typeFilter change
     useEffect(() => {
         fetchBills();
-    }, []);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [page, searchTerm, filter, typeFilter]);
 
     const fetchBills = async () => {
+        setLoading(true);
         try {
-            const res = await fetch('/api/bills');
+            const params = new URLSearchParams({
+                page: String(page),
+                limit: String(LIMIT),
+                search: searchTerm,
+                filter,
+                typeFilter,
+            });
+            const res = await fetch(`/api/bills?${params.toString()}`);
             const data = await res.json();
             if (data.success) {
                 setBills(data.data);
+                setTotalPages(data.totalPages || 1);
             }
         } catch (error) {
             console.error('Failed to fetch bills', error);
@@ -37,6 +72,14 @@ export default function HistoryPage() {
         setExpandedId(expandedId === id ? null : id);
         setPaymentAmount('');
         setUpdatingBillId(null);
+    };
+
+    const handleFilterChange = (newFilter) => {
+        setFilter(newFilter);
+    };
+
+    const handleTypeFilterChange = (newType) => {
+        setTypeFilter(newType);
     };
 
     const handleUpdatePayment = async (billId) => {
@@ -58,7 +101,7 @@ export default function HistoryPage() {
                 toast.success('Payment updated successfully');
                 setPaymentAmount('');
                 setUpdatingBillId(null);
-                fetchBills(); // Refresh list to update dues/status
+                fetchBills();
             } else {
                 toast.error(data.error);
                 setUpdatingBillId(null);
@@ -70,54 +113,47 @@ export default function HistoryPage() {
         }
     };
 
-    const filteredBills = bills.filter(bill => {
-        const matchesSearch = bill.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            (bill.billNumber && String(bill.billNumber).includes(searchTerm)) ||
-            (!bill.billNumber && bill._id.slice(-4).includes(searchTerm));
-
-        if (!matchesSearch) return false;
-
-        const isDue = (bill.dueAmount || 0) > 0;
-        if (filter === 'PAID' && isDue) return false;
-        if (filter === 'DUE' && !isDue) return false;
-
-        if (typeFilter === 'RETAILER' && bill.customerType !== 'RETAILER') return false;
-        if (typeFilter === 'WHOLESALER' && bill.customerType !== 'WHOLESALER') return false;
-
-        return true;
-    });
-
-    if (loading) return <div className="p-8 text-center">Loading history...</div>;
-
     return (
         <div className="space-y-6">
+            {/* Header & Filters */}
             <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
                 <h1 className="text-3xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100">History</h1>
 
                 <div className="flex flex-col gap-2">
                     <div className="flex gap-2">
-                        <button onClick={() => setFilter('ALL')} className={`px-3 py-1 text-sm rounded-md border ${filter === 'ALL' ? 'bg-zinc-900 text-white border-zinc-900 dark:bg-zinc-100 dark:text-zinc-900' : 'bg-white text-zinc-700 border-zinc-300 dark:bg-zinc-900 dark:text-zinc-300 dark:border-zinc-700'}`}>All</button>
-                        <button onClick={() => setFilter('PAID')} className={`px-3 py-1 text-sm rounded-md border ${filter === 'PAID' ? 'bg-green-600 text-white border-green-600' : 'bg-white text-zinc-700 border-zinc-300 dark:bg-zinc-900 dark:text-zinc-300 dark:border-zinc-700'}`}>Paid</button>
-                        <button onClick={() => setFilter('DUE')} className={`px-3 py-1 text-sm rounded-md border ${filter === 'DUE' ? 'bg-red-600 text-white border-red-600' : 'bg-white text-zinc-700 border-zinc-300 dark:bg-zinc-900 dark:text-zinc-300 dark:border-zinc-700'}`}>Dues</button>
+                        <button onClick={() => handleFilterChange('ALL')} className={`px-3 py-1 text-sm rounded-md border ${filter === 'ALL' ? 'bg-zinc-900 text-white border-zinc-900 dark:bg-zinc-100 dark:text-zinc-900' : 'bg-white text-zinc-700 border-zinc-300 dark:bg-zinc-900 dark:text-zinc-300 dark:border-zinc-700'}`}>All</button>
+                        <button onClick={() => handleFilterChange('PAID')} className={`px-3 py-1 text-sm rounded-md border ${filter === 'PAID' ? 'bg-green-600 text-white border-green-600' : 'bg-white text-zinc-700 border-zinc-300 dark:bg-zinc-900 dark:text-zinc-300 dark:border-zinc-700'}`}>Paid</button>
+                        <button onClick={() => handleFilterChange('DUE')} className={`px-3 py-1 text-sm rounded-md border ${filter === 'DUE' ? 'bg-red-600 text-white border-red-600' : 'bg-white text-zinc-700 border-zinc-300 dark:bg-zinc-900 dark:text-zinc-300 dark:border-zinc-700'}`}>Dues</button>
                     </div>
                     <div className="flex gap-2">
-                        <button onClick={() => setTypeFilter('ALL')} className={`px-3 py-1 text-sm rounded-md border ${typeFilter === 'ALL' ? 'bg-zinc-900 text-white border-zinc-900 dark:bg-zinc-100 dark:text-zinc-900' : 'bg-white text-zinc-700 border-zinc-300 dark:bg-zinc-900 dark:text-zinc-300 dark:border-zinc-700'}`}>All Types</button>
-                        <button onClick={() => setTypeFilter('RETAILER')} className={`px-3 py-1 text-sm rounded-md border ${typeFilter === 'RETAILER' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-zinc-700 border-zinc-300 dark:bg-zinc-900 dark:text-zinc-300 dark:border-zinc-700'}`}>Retailer</button>
-                        <button onClick={() => setTypeFilter('WHOLESALER')} className={`px-3 py-1 text-sm rounded-md border ${typeFilter === 'WHOLESALER' ? 'bg-purple-600 text-white border-purple-600' : 'bg-white text-zinc-700 border-zinc-300 dark:bg-zinc-900 dark:text-zinc-300 dark:border-zinc-700'}`}>Wholesaler</button>
+                        <button onClick={() => handleTypeFilterChange('ALL')} className={`px-3 py-1 text-sm rounded-md border ${typeFilter === 'ALL' ? 'bg-zinc-900 text-white border-zinc-900 dark:bg-zinc-100 dark:text-zinc-900' : 'bg-white text-zinc-700 border-zinc-300 dark:bg-zinc-900 dark:text-zinc-300 dark:border-zinc-700'}`}>All Types</button>
+                        <button onClick={() => handleTypeFilterChange('RETAILER')} className={`px-3 py-1 text-sm rounded-md border ${typeFilter === 'RETAILER' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-zinc-700 border-zinc-300 dark:bg-zinc-900 dark:text-zinc-300 dark:border-zinc-700'}`}>Retailer</button>
+                        <button onClick={() => handleTypeFilterChange('WHOLESALER')} className={`px-3 py-1 text-sm rounded-md border ${typeFilter === 'WHOLESALER' ? 'bg-purple-600 text-white border-purple-600' : 'bg-white text-zinc-700 border-zinc-300 dark:bg-zinc-900 dark:text-zinc-300 dark:border-zinc-700'}`}>Wholesaler</button>
                     </div>
                 </div>
 
+                {/* Search — debounced */}
                 <div className="relative w-64">
                     <Search className="absolute left-2 top-2.5 h-4 w-4 text-zinc-500" />
                     <input
                         placeholder="Search name or bill no..."
                         className="pl-8 h-9 w-full rounded-md border border-zinc-200 bg-white px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-zinc-900 dark:border-zinc-800 dark:bg-zinc-950 dark:focus-visible:ring-zinc-300"
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
+                        value={searchInput}
+                        onChange={(e) => {
+                            const val = e.target.value;
+                            setSearchInput(val);
+                            // If cleared, immediately reload all data
+                            if (val === '') {
+                                setSearchTerm('');
+                                setPage(1);
+                            }
+                        }}
+                        onKeyDown={handleSearchKeyDown}
                     />
                 </div>
             </div>
 
+            {/* Table */}
             <div className="rounded-md border border-zinc-200 dark:border-zinc-800 overflow-x-auto">
                 <table className="w-full caption-bottom text-sm text-left min-w-[800px]">
                     <thead className="[&_tr]:border-b bg-zinc-50 dark:bg-zinc-900">
@@ -131,13 +167,16 @@ export default function HistoryPage() {
                         </tr>
                     </thead>
                     <tbody className="[&_tr:last-child]:border-0 bg-white dark:bg-zinc-950">
-                        {bills.length === 0 ? (
+                        {loading ? (
+                            <tr>
+                                <td colSpan={6} className="p-8 text-center text-zinc-500">Loading...</td>
+                            </tr>
+                        ) : bills.length === 0 ? (
                             <tr>
                                 <td colSpan={6} className="p-4 text-center text-zinc-500">No history found.</td>
                             </tr>
                         ) : (
-
-                            filteredBills.map((bill) => (
+                            bills.map((bill) => (
                                 <React.Fragment key={bill._id}>
                                     <tr className="border-b transition-colors hover:bg-zinc-100/50 data-[state=selected]:bg-zinc-100 dark:hover:bg-zinc-800/50 dark:data-[state=selected]:bg-zinc-800">
                                         <td className="p-4 align-middle font-medium">#{bill.billNumber ? String(bill.billNumber).padStart(4, '0') : bill._id.slice(-4)}</td>
@@ -229,6 +268,31 @@ export default function HistoryPage() {
                     </tbody>
                 </table>
             </div>
+
+            {/* Pagination */}
+            {!loading && totalPages > 1 && (
+                <div className="flex items-center justify-between pt-2">
+                    <span className="text-sm text-zinc-500 dark:text-zinc-400">
+                        Page {page} of {totalPages}
+                    </span>
+                    <div className="flex gap-2">
+                        <button
+                            onClick={() => setPage((p) => Math.max(1, p - 1))}
+                            disabled={page === 1}
+                            className="flex items-center gap-1 px-3 py-1.5 text-sm rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 disabled:opacity-40 disabled:cursor-not-allowed"
+                        >
+                            <ChevronLeft className="w-4 h-4" /> Prev
+                        </button>
+                        <button
+                            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                            disabled={page === totalPages}
+                            className="flex items-center gap-1 px-3 py-1.5 text-sm rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 disabled:opacity-40 disabled:cursor-not-allowed"
+                        >
+                            Next <ChevronRight className="w-4 h-4" />
+                        </button>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

@@ -4,6 +4,18 @@ import { NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic';
 
+export async function GET(request, context) {
+    await dbConnect();
+    const { id } = await context.params;
+    try {
+        const bill = await Bill.findById(id);
+        if (!bill) return NextResponse.json({ success: false, error: 'Bill not found' }, { status: 404 });
+        return NextResponse.json({ success: true, data: bill });
+    } catch (error) {
+        return NextResponse.json({ success: false, error: error.message }, { status: 400 });
+    }
+}
+
 export async function PATCH(request, context) {
     await dbConnect();
     const { id } = await context.params;

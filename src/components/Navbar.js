@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { LayoutDashboard, Package, ShoppingCart, History, Menu, X, LogOut } from 'lucide-react';
+import { LayoutDashboard, Package, ShoppingCart, History, Menu, X, LogOut, Wallet } from 'lucide-react';
 
 export default function Navbar() {
     const pathname = usePathname();
@@ -14,6 +14,7 @@ export default function Navbar() {
         { name: 'Products', href: '/products', icon: Package },
         { name: 'Billing', href: '/billing', icon: ShoppingCart },
         { name: 'History', href: '/history', icon: History },
+        { name: 'Payments', href: '/payments', icon: Wallet },
     ];
 
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
