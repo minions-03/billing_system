@@ -346,7 +346,7 @@ export default function BillingPage() {
                                         </div>
                                         <div className="flex items-center gap-1">
                                             <span className="font-bold w-28 shrink-0">Date</span>
-                                            <span className="border-b border-dotted border-black flex-1">{new Date().toLocaleDateString()}</span>
+                                            <span className="border-b border-dotted border-black flex-1">{new Date().toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' })}</span>
                                         </div>
                                         <div className="flex items-center gap-1">
                                             <span className="font-bold w-28 shrink-0">Vehicle No.</span>
@@ -584,7 +584,7 @@ export default function BillingPage() {
                                 <div className="w-1/2 p-2 relative">
                                     <div className="flex gap-2 mb-1">
                                         <span className="font-bold w-12">Date :</span>
-                                        <span className="border-b border-dotted border-black flex-1">{new Date().toLocaleDateString()}</span>
+                                        <span className="border-b border-dotted border-black flex-1">{new Date().toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' })}</span>
                                     </div>
                                     <div className="flex items-center gap-2">
                                         <span className="font-bold w-12 shrink-0">Address:</span>

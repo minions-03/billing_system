@@ -81,7 +81,7 @@ function RetailerInvoice({ bill }) {
                 <div className="w-1/2 p-2 border-l border-black">
                     <div className="flex gap-2">
                         <span className="font-bold">Date :</span>
-                        <span className="border-b border-dotted border-black flex-1">{new Date(bill.createdAt).toLocaleDateString()}</span>
+                        <span className="border-b border-dotted border-black flex-1">{new Date(bill.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' })}</span>
                     </div>
                     <div className="mt-1 flex items-center gap-2">
                         <span className="font-bold shrink-0">Address :</span>
@@ -192,7 +192,7 @@ function WholesalerInvoice({ bill }) {
                 <div className="w-[45%] p-2 flex flex-col gap-1">
                     <div className="flex gap-1"><span className="font-bold w-28 shrink-0">Book No.</span><span className="border-b border-dotted border-black flex-1">{bill.bookNo || '—'}</span></div>
                     <div className="flex gap-1"><span className="font-bold w-28 shrink-0">Bill No.</span><span className="border-b border-dotted border-black flex-1 text-red-600 font-bold">{bill.billNumber ? String(bill.billNumber).padStart(4, '0') : bill._id.slice(-4)}</span></div>
-                    <div className="flex gap-1"><span className="font-bold w-28 shrink-0">Date</span><span className="border-b border-dotted border-black flex-1">{new Date(bill.createdAt).toLocaleDateString()}</span></div>
+                    <div className="flex gap-1"><span className="font-bold w-28 shrink-0">Date</span><span className="border-b border-dotted border-black flex-1">{new Date(bill.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' })}</span></div>
                     <div className="flex gap-1"><span className="font-bold w-28 shrink-0">Vehicle No.</span><span className="border-b border-dotted border-black flex-1">{bill.vehicleNo || '—'}</span></div>
                     <div className="flex gap-1"><span className="font-bold w-28 shrink-0">Supplier&apos;s ref</span><span className="border-b border-dotted border-black flex-1">{bill.supplierRef || '—'}</span></div>
                 </div>
