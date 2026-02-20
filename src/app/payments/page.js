@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
-    Wallet, Plus, Trash2, Search, TrendingDown,
+    Wallet, Plus, Trash2, Search, ChevronLeft, ChevronRight,
     CreditCard, Landmark, Banknote, Smartphone, RefreshCcw,
     Pencil, Check, X, Clock
 } from 'lucide-react';
@@ -29,43 +29,79 @@ const emptyForm = {
     isBlankCheque: false,
 };
 
+const LIMIT = 10;
+
 export default function PaymentsPage() {
     const [payments, setPayments] = useState([]);
     const [loading, setLoading] = useState(true);
     const [showForm, setShowForm] = useState(false);
     const [form, setForm] = useState(emptyForm);
     const [submitting, setSubmitting] = useState(false);
+
+    // Search: separate input state vs committed search term (Enter key)
+    const [searchInput, setSearchInput] = useState('');
     const [searchTerm, setSearchTerm] = useState('');
+
     const [modeFilter, setModeFilter] = useState('ALL');
-    const [statusFilter, setStatusFilter] = useState('ALL'); // ALL | PENDING | COMPLETED
+    const [statusFilter, setStatusFilter] = useState('ALL');
     const [deletingId, setDeletingId] = useState(null);
-    // Inline edit state: { id, amount, referenceNo }
+
+    // Pagination
+    const [page, setPage] = useState(1);
+    const [totalPages, setTotalPages] = useState(1);
+    const [total, setTotal] = useState(0);
+
+    // Global stats from API
+    const [pendingCount, setPendingCount] = useState(0);
+    const [allTimeTotal, setAllTimeTotal] = useState(0);
+    const [thisMonthTotal, setThisMonthTotal] = useState(0);
+
+    // Inline edit state
     const [editRow, setEditRow] = useState(null);
     const [savingEdit, setSavingEdit] = useState(false);
 
-    useEffect(() => { fetchPayments(); }, []);
-
-    const fetchPayments = async () => {
+    const fetchPayments = useCallback(async (pg = page) => {
         setLoading(true);
         try {
-            const res = await fetch('/api/payments');
+            const params = new URLSearchParams({
+                page: pg,
+                limit: LIMIT,
+                search: searchTerm,
+                modeFilter,
+                statusFilter,
+            });
+            const res = await fetch(`/api/payments?${params}`);
             const data = await res.json();
-            if (data.success) setPayments(data.data);
+            if (data.success) {
+                setPayments(data.data);
+                setTotalPages(data.totalPages);
+                setTotal(data.total);
+                setPendingCount(data.pendingCount);
+                setAllTimeTotal(data.allTimeTotal);
+                setThisMonthTotal(data.thisMonthTotal);
+            }
         } catch { toast.error('Failed to load payments'); }
         finally { setLoading(false); }
+    }, [page, searchTerm, modeFilter, statusFilter]);
+
+    // Re-fetch whenever page, searchTerm, or filters change
+    useEffect(() => { fetchPayments(page); }, [page, searchTerm, modeFilter, statusFilter]);
+
+    // Reset to page 1 when filter changes
+    const handleModeFilter = (m) => { setModeFilter(m); setPage(1); };
+    const handleStatusFilter = (s) => { setStatusFilter(s); setPage(1); };
+
+    // Search triggers on Enter
+    const handleSearchKeyDown = (e) => {
+        if (e.key === 'Enter') { setSearchTerm(searchInput); setPage(1); }
     };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         if (!form.companyName.trim()) { toast.error('Enter company name'); return; }
-        // For blank cheque, amount can be 0; otherwise require amount
         if (!form.isBlankCheque && (!form.amount || Number(form.amount) <= 0)) {
             toast.error('Enter a valid amount'); return;
         }
-        if (form.paymentMode !== 'CHEQUE' && !form.isBlankCheque && (!form.amount || Number(form.amount) <= 0)) {
-            toast.error('Enter a valid amount'); return;
-        }
-
         setSubmitting(true);
         try {
             const res = await fetch('/api/payments', {
@@ -86,10 +122,9 @@ export default function PaymentsPage() {
                 toast.success(form.isBlankCheque ? 'Blank cheque recorded (Pending)' : 'Payment recorded!');
                 setForm(emptyForm);
                 setShowForm(false);
-                fetchPayments();
-            } else {
-                toast.error(data.error);
-            }
+                setPage(1);
+                fetchPayments(1);
+            } else toast.error(data.error);
         } catch { toast.error('Failed to save payment'); }
         finally { setSubmitting(false); }
     };
@@ -111,7 +146,7 @@ export default function PaymentsPage() {
             if (data.success) {
                 toast.success('Amount updated — marked as Completed!');
                 setEditRow(null);
-                fetchPayments();
+                fetchPayments(page);
             } else toast.error(data.error);
         } catch { toast.error('Failed to update'); }
         finally { setSavingEdit(false); }
@@ -125,23 +160,14 @@ export default function PaymentsPage() {
             const data = await res.json();
             if (data.success) {
                 toast.success('Deleted');
-                setPayments(prev => prev.filter(p => p._id !== id));
+                // Go back a page if this was the last item on the page
+                const newPage = payments.length === 1 && page > 1 ? page - 1 : page;
+                setPage(newPage);
+                fetchPayments(newPage);
             } else toast.error(data.error);
         } catch { toast.error('Failed to delete'); }
         finally { setDeletingId(null); }
     };
-
-    const filtered = payments.filter(p => {
-        const matchSearch = p.companyName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            (p.referenceNo || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-            (p.note || '').toLowerCase().includes(searchTerm.toLowerCase());
-        const matchMode = modeFilter === 'ALL' || p.paymentMode === modeFilter;
-        const matchStatus = statusFilter === 'ALL' || p.status === statusFilter;
-        return matchSearch && matchMode && matchStatus;
-    });
-
-    const totalSent = filtered.filter(p => p.status === 'COMPLETED').reduce((s, p) => s + p.amount, 0);
-    const pendingCount = payments.filter(p => p.status === 'PENDING').length;
 
     // Auto-toggle blank cheque off if mode is not CHEQUE
     const handleModeChange = (mode) => {
@@ -194,7 +220,7 @@ export default function PaymentsPage() {
                             </select>
                         </div>
 
-                        {/* Amount — OR blank cheque toggle */}
+                        {/* Amount */}
                         <div className="flex flex-col gap-1">
                             <label className="text-xs font-medium text-zinc-600 dark:text-zinc-400">
                                 Amount (₹) {form.isBlankCheque ? '— Blank Cheque' : '*'}
@@ -207,7 +233,6 @@ export default function PaymentsPage() {
                                 disabled={form.isBlankCheque}
                                 onChange={e => setForm({ ...form, amount: e.target.value })}
                             />
-                            {/* Blank cheque checkbox — only for CHEQUE mode */}
                             {form.paymentMode === 'CHEQUE' && (
                                 <label className="flex items-center gap-2 mt-1 cursor-pointer">
                                     <input
@@ -281,7 +306,7 @@ export default function PaymentsPage() {
             )}
 
             {/* Summary Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
                 <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-5 flex items-center gap-4 shadow-sm">
                     <div className="bg-amber-100 dark:bg-amber-900/30 p-3 rounded-lg shrink-0">
                         <Clock className="w-6 h-6 text-amber-600 dark:text-amber-400" />
@@ -297,7 +322,16 @@ export default function PaymentsPage() {
                     </div>
                     <div>
                         <div className="text-xs text-zinc-500">Total Entries</div>
-                        <div className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">{payments.length}</div>
+                        <div className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">{total}</div>
+                    </div>
+                </div>
+                <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-5 flex items-center gap-4 shadow-sm">
+                    <div className="bg-blue-100 dark:bg-blue-900/30 p-3 rounded-lg shrink-0">
+                        <Wallet className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+                    </div>
+                    <div>
+                        <div className="text-xs text-zinc-500">This Month</div>
+                        <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">₹{thisMonthTotal.toLocaleString('en-IN')}</div>
                     </div>
                 </div>
                 <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-5 flex items-center gap-4 shadow-sm">
@@ -307,29 +341,36 @@ export default function PaymentsPage() {
                     <div>
                         <div className="text-xs text-zinc-500">All Time Total</div>
                         <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
-                            ₹{payments.filter(p => p.status === 'COMPLETED').reduce((s, p) => s + p.amount, 0).toLocaleString('en-IN')}
+                            ₹{allTimeTotal.toLocaleString('en-IN')}
                         </div>
                     </div>
                 </div>
             </div>
 
-            {/* Filters */}
+            {/* Filters + Search */}
             <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center flex-wrap">
+                {/* Search — Enter to search */}
                 <div className="relative w-full sm:w-72">
                     <Search className="absolute left-3 top-2.5 h-4 w-4 text-zinc-400" />
                     <input
-                        placeholder="Search company, ref, note..."
+                        placeholder="Search company, ref, note… (Enter)"
                         className="pl-9 h-9 w-full rounded-md border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 px-3 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-emerald-500"
-                        value={searchTerm}
-                        onChange={e => setSearchTerm(e.target.value)}
+                        value={searchInput}
+                        onChange={e => {
+                            const val = e.target.value;
+                            setSearchInput(val);
+                            if (val === '') { setSearchTerm(''); setPage(1); }
+                        }}
+                        onKeyDown={handleSearchKeyDown}
                     />
                 </div>
+
                 {/* Mode filter */}
                 <div className="flex gap-2 flex-wrap">
                     {['ALL', ...PAYMENT_MODES].map(m => (
                         <button
                             key={m}
-                            onClick={() => setModeFilter(m)}
+                            onClick={() => handleModeFilter(m)}
                             className={`px-3 py-1 text-xs rounded-md border font-medium transition-colors ${modeFilter === m
                                 ? 'bg-zinc-900 text-white border-zinc-900 dark:bg-zinc-100 dark:text-zinc-900'
                                 : 'bg-white dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400 border-zinc-200 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800'
@@ -339,12 +380,13 @@ export default function PaymentsPage() {
                         </button>
                     ))}
                 </div>
+
                 {/* Status filter */}
                 <div className="flex gap-2">
                     {['ALL', 'COMPLETED', 'PENDING'].map(s => (
                         <button
                             key={s}
-                            onClick={() => setStatusFilter(s)}
+                            onClick={() => handleStatusFilter(s)}
                             className={`px-3 py-1 text-xs rounded-md border font-medium transition-colors ${statusFilter === s
                                 ? s === 'PENDING' ? 'bg-amber-500 text-white border-amber-500'
                                     : s === 'COMPLETED' ? 'bg-emerald-600 text-white border-emerald-600'
@@ -356,7 +398,8 @@ export default function PaymentsPage() {
                         </button>
                     ))}
                 </div>
-                <button onClick={fetchPayments} className="ml-auto text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors" title="Refresh">
+
+                <button onClick={() => fetchPayments(page)} className="ml-auto text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors" title="Refresh">
                     <RefreshCcw className="w-4 h-4" />
                 </button>
             </div>
@@ -379,10 +422,10 @@ export default function PaymentsPage() {
                     <tbody className="bg-white dark:bg-zinc-950 divide-y divide-zinc-100 dark:divide-zinc-800">
                         {loading ? (
                             <tr><td colSpan={8} className="p-8 text-center text-zinc-400">Loading...</td></tr>
-                        ) : filtered.length === 0 ? (
+                        ) : payments.length === 0 ? (
                             <tr><td colSpan={8} className="p-8 text-center text-zinc-400">No payment records found.</td></tr>
                         ) : (
-                            filtered.map(p => {
+                            payments.map(p => {
                                 const modeStyle = MODE_STYLES[p.paymentMode] || MODE_STYLES.ONLINE;
                                 const ModeIcon = modeStyle.icon;
                                 const isPending = p.status === 'PENDING';
@@ -411,12 +454,12 @@ export default function PaymentsPage() {
                                             )}
                                         </td>
 
-                                        {/* Reference — editable when editing */}
+                                        {/* Cheque / Ref — editable when editing */}
                                         <td className="px-4 py-3 text-zinc-500 font-mono text-xs">
                                             {isEditing ? (
                                                 <input
                                                     className="border border-zinc-200 dark:border-zinc-700 rounded px-2 py-1 text-xs w-32 bg-white dark:bg-zinc-900 focus:outline-none focus:ring-1 focus:ring-emerald-500"
-                                                    placeholder="Cheque No."
+                                                    placeholder="Cheque / Ref No."
                                                     value={editRow.referenceNo}
                                                     onChange={e => setEditRow({ ...editRow, referenceNo: e.target.value })}
                                                 />
@@ -466,7 +509,6 @@ export default function PaymentsPage() {
                                                     </>
                                                 ) : (
                                                     <>
-                                                        {/* Show edit button always — useful for updating ref no or correcting amount */}
                                                         <button
                                                             onClick={() => startEdit(p)}
                                                             className={`p-1.5 rounded-md transition-colors ${isPending
@@ -493,20 +535,33 @@ export default function PaymentsPage() {
                             })
                         )}
                     </tbody>
-                    {filtered.length > 0 && (
-                        <tfoot>
-                            <tr className="bg-zinc-50 dark:bg-zinc-900 border-t border-zinc-200 dark:border-zinc-800">
-                                <td colSpan={6} className="px-4 py-3 font-bold text-zinc-700 dark:text-zinc-300">
-                                    Total (completed)
-                                </td>
-                                <td className="px-4 py-3 text-right font-bold text-zinc-900 dark:text-zinc-100">
-                                    ₹{totalSent.toLocaleString('en-IN')}
-                                </td>
-                                <td></td>
-                            </tr>
-                        </tfoot>
-                    )}
                 </table>
+            </div>
+
+            {/* Pagination */}
+            <div className="flex items-center justify-between text-sm text-zinc-500">
+                <span>
+                    {total === 0 ? 'No records' : `Showing ${(page - 1) * LIMIT + 1}–${Math.min(page * LIMIT, total)} of ${total} entries`}
+                </span>
+                <div className="flex items-center gap-2">
+                    <button
+                        onClick={() => setPage(p => Math.max(1, p - 1))}
+                        disabled={page === 1 || loading}
+                        className="flex items-center gap-1 px-3 py-1.5 rounded-md border border-zinc-200 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    >
+                        <ChevronLeft className="w-4 h-4" /> Prev
+                    </button>
+                    <span className="px-3 py-1.5 rounded-md bg-zinc-100 dark:bg-zinc-800 font-medium text-zinc-700 dark:text-zinc-300">
+                        {page} / {totalPages}
+                    </span>
+                    <button
+                        onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                        disabled={page === totalPages || loading}
+                        className="flex items-center gap-1 px-3 py-1.5 rounded-md border border-zinc-200 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    >
+                        Next <ChevronRight className="w-4 h-4" />
+                    </button>
+                </div>
             </div>
         </div>
     );
