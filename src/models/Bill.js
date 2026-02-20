@@ -47,6 +47,10 @@ const BillSchema = new mongoose.Schema({
                 type: Number,
                 required: true,
             },
+            bagWeight: {
+                type: Number,
+                default: null,
+            },
         },
     ],
     totalAmount: {

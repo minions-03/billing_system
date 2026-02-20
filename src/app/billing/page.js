@@ -1,14 +1,11 @@
 "use client";
 
-import { useState, useEffect, useRef } from 'react';
-import { useRouter } from 'next/navigation';
-import { Search, Plus, Minus, Trash2, Printer, CheckCircle, Store, Building2 } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Search, Plus, Minus, Trash2, Store, Building2, CheckCircle, Printer } from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'sonner';
 
 export default function BillingPage() {
-    const router = useRouter();
-
     // Type selector modal
     const [billingType, setBillingType] = useState(null); // null | 'RETAILER' | 'WHOLESALER'
 
@@ -121,6 +118,7 @@ export default function BillingPage() {
                     productName: item.name,
                     quantity: item.quantity,
                     price: item.price,
+                    bagWeight: item.bagWeight || null,
                 })),
                 totalAmount: billingType === 'WHOLESALER' ? grandTotal : calculateTotal(),
                 paidAmount: currentPaid,
@@ -143,7 +141,6 @@ export default function BillingPage() {
                 setCustomer({ name: '', phone: '', address: '', type: billingType, gstin: '', cst: '', tin: '' });
                 setWsFields({ bookNo: '', vehicleNo: '', supplierRef: '', hsnCode: '', cgst: '', sgst: '', igst: '' });
                 fetchProducts();
-                router.refresh();
             } else {
                 toast.error(data.error);
             }
@@ -166,8 +163,10 @@ export default function BillingPage() {
     };
 
     const filteredProducts = products.filter(p =>
-        p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        p.category.toLowerCase().includes(searchTerm.toLowerCase())
+        p.stock > 0 && (
+            p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            p.category.toLowerCase().includes(searchTerm.toLowerCase())
+        )
     );
 
     // ─── Type selector modal ───────────────────────────────────────────────────
@@ -221,14 +220,14 @@ export default function BillingPage() {
                             onChange={(e) => setSearchTerm(e.target.value)}
                         />
                     </div>
-                    <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4 overflow-y-auto p-1 pb-20 lg:pb-1">
+                    <div className="grid grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-4 overflow-y-auto overflow-x-hidden p-1 pb-20 lg:pb-1">
                         {filteredProducts.map(product => (
                             <div
                                 key={product._id}
                                 onClick={() => addToCart(product)}
-                                className={`bg-white dark:bg-zinc-950 p-4 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm cursor-pointer transition-all hover:border-purple-500 dark:hover:border-purple-500 ${product.stock === 0 ? 'opacity-50 pointer-events-none' : ''}`}
+                                className={`bg-white dark:bg-zinc-950 p-5 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm cursor-pointer transition-all hover:border-purple-500 dark:hover:border-purple-500 ${product.stock === 0 ? 'opacity-50 pointer-events-none' : ''}`}
                             >
-                                <h3 className="font-semibold text-zinc-900 dark:text-zinc-100 truncate">{product.name}</h3>
+                                <h3 className="font-semibold text-zinc-900 dark:text-zinc-100 line-clamp-2 leading-tight min-h-[2.8rem] mb-1">{product.name}</h3>
                                 <p className="text-xs text-zinc-500 dark:text-zinc-400">{product.category}</p>
                                 <div className="mt-2 flex flex-wrap justify-between items-center gap-2">
                                     <span className="font-bold text-lg">₹{product.price.toFixed(2)}</span>
@@ -253,7 +252,7 @@ export default function BillingPage() {
                 </div>
 
                 {/* Right: Wholesaler TAX INVOICE */}
-                <div className={`w-full lg:w-[820px] flex flex-col items-start lg:items-center overflow-y-auto overflow-x-auto ${success ? 'block' : ''} ${activeTab === 'invoice' ? 'flex' : 'hidden lg:flex'}`}>
+                <div className={`w-full lg:w-[820px] flex flex-col items-start lg:items-center overflow-y-auto overflow-x-hidden ${success ? 'block' : ''} ${activeTab === 'invoice' ? 'flex' : 'hidden lg:flex'}`}>
                     <div className="lg:hidden w-full mb-4 flex justify-start">
                         <button onClick={() => setActiveTab('products')} className="text-zinc-500 flex items-center gap-2 text-sm font-medium p-2 bg-white rounded-md shadow-sm border border-zinc-200">
                             ← Back to Products
@@ -367,7 +366,7 @@ export default function BillingPage() {
                                     <div className="w-[7%] p-1 border-r border-black text-center">S/N</div>
                                     <div className="w-[40%] p-1 border-r border-black text-center">Item Description</div>
                                     <div className="w-[15%] p-1 border-r border-black text-center">HSN Code</div>
-                                    <div className="w-[10%] p-1 border-r border-black text-center">QTY</div>
+                                    <div className="w-[10%] p-1 border-r border-black text-center">Qty(Bags)</div>
                                     <div className="w-[13%] p-1 border-r border-black text-center">Rate</div>
                                     <div className="w-[15%] p-1 text-center">Amount</div>
                                 </div>
@@ -395,7 +394,7 @@ export default function BillingPage() {
                                                 <div className="w-[15%] p-1 text-center py-2">{wsFields.hsnCode || '—'}</div>
                                                 <div className="w-[10%] p-1 text-center py-2 flex items-center justify-center gap-1">
                                                     <button onClick={() => updateQuantity(item.productId, item.quantity - 1)} className="hover:text-red-500 text-gray-400 opacity-0 group-hover:opacity-100"><Minus className="w-3 h-3" /></button>
-                                                    <span>{item.quantity}</span>
+                                                    <span className="whitespace-nowrap text-[10px]">{item.bagWeight ? `${item.bagWeight}kg × ${item.quantity}` : item.quantity}</span>
                                                     <button onClick={() => updateQuantity(item.productId, item.quantity + 1)} className="hover:text-green-500 text-gray-400 opacity-0 group-hover:opacity-100"><Plus className="w-3 h-3" /></button>
                                                 </div>
                                                 <div className="w-[13%] p-1 text-center py-2">₹{item.price}</div>
@@ -491,14 +490,14 @@ export default function BillingPage() {
                         onChange={(e) => setSearchTerm(e.target.value)}
                     />
                 </div>
-                <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4 overflow-y-auto p-1 pb-20 lg:pb-1">
+                <div className="grid grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-4 overflow-y-auto overflow-x-hidden p-1 pb-20 lg:pb-1">
                     {filteredProducts.map(product => (
                         <div
                             key={product._id}
                             onClick={() => addToCart(product)}
-                            className={`bg-white dark:bg-zinc-950 p-4 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm cursor-pointer transition-all hover:border-indigo-500 dark:hover:border-indigo-500 ${product.stock === 0 ? 'opacity-50 pointer-events-none' : ''}`}
+                            className={`bg-white dark:bg-zinc-950 p-5 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm cursor-pointer transition-all hover:border-indigo-500 dark:hover:border-indigo-500 ${product.stock === 0 ? 'opacity-50 pointer-events-none' : ''}`}
                         >
-                            <h3 className="font-semibold text-zinc-900 dark:text-zinc-100 truncate">{product.name}</h3>
+                            <h3 className="font-semibold text-zinc-900 dark:text-zinc-100 line-clamp-2 leading-tight min-h-[2.8rem] mb-1">{product.name}</h3>
                             <p className="text-xs text-zinc-500 dark:text-zinc-400">{product.category}</p>
                             <div className="mt-2 flex flex-wrap justify-between items-center gap-2">
                                 <span className="font-bold text-lg">₹{product.price.toFixed(2)}</span>
@@ -522,7 +521,7 @@ export default function BillingPage() {
                 )}
             </div>
 
-            <div className={`w-full lg:w-[800px] flex flex-col items-start lg:items-center overflow-y-auto overflow-x-auto ${success ? 'block' : ''} ${activeTab === 'invoice' ? 'flex' : 'hidden lg:flex'}`}>
+            <div className={`w-full lg:w-[800px] flex flex-col items-start lg:items-center overflow-y-auto overflow-x-hidden ${success ? 'block' : ''} ${activeTab === 'invoice' ? 'flex' : 'hidden lg:flex'}`}>
                 <div className="lg:hidden w-full mb-4 flex justify-start">
                     <button onClick={() => setActiveTab('products')} className="text-zinc-500 flex items-center gap-2 text-sm font-medium p-2 bg-white rounded-md shadow-sm border border-zinc-200">
                         ← Back to Products

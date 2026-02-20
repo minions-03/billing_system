@@ -112,7 +112,7 @@ function RetailerInvoice({ bill }) {
                     <div key={index} className="flex z-10 relative">
                         <div className="w-[10%] p-1 text-center">{index + 1}</div>
                         <div className="w-[50%] p-1 pl-2">{item.productName}</div>
-                        <div className="w-[15%] p-1 text-center">{item.quantity}</div>
+                        <div className="w-[15%] p-1 text-center whitespace-nowrap">{item.bagWeight ? `${item.bagWeight}kg × ${item.quantity}` : item.quantity}</div>
                         <div className="w-[10%] p-1 text-center">{item.price}</div>
                         <div className="w-[15%] p-1 text-right pr-2">{(item.price * item.quantity).toFixed(2)}</div>
                     </div>
@@ -223,7 +223,7 @@ function WholesalerInvoice({ bill }) {
                         <div className="w-[7%] p-1 text-center">{index + 1}</div>
                         <div className="w-[40%] p-1 pl-2 font-medium">{item.productName}</div>
                         <div className="w-[15%] p-1 text-center">{bill.hsnCode || '—'}</div>
-                        <div className="w-[10%] p-1 text-center">{item.quantity}</div>
+                        <div className="w-[10%] p-1 text-center whitespace-nowrap">{item.bagWeight ? `${item.bagWeight}kg × ${item.quantity}` : item.quantity}</div>
                         <div className="w-[13%] p-1 text-center">₹{item.price}</div>
                         <div className="w-[15%] p-1 text-right pr-2">₹{(item.price * item.quantity).toFixed(2)}</div>
                     </div>

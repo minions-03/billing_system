@@ -189,12 +189,12 @@ export default function ProductsPage() {
                         </tr>
                     </thead>
                     <tbody className="[&_tr:last-child]:border-0 bg-white dark:bg-zinc-950">
-                        {products.length === 0 ? (
+                        {products.filter(p => p.stock > 0).length === 0 ? (
                             <tr>
-                                <td colSpan={5} className="p-4 text-center text-zinc-500">No products found. Add one to get started.</td>
+                                <td colSpan={5} className="p-4 text-center text-zinc-500">No in-stock products found. Add stock or create a new product.</td>
                             </tr>
                         ) : (
-                            products.map((product) => (
+                            products.filter(p => p.stock > 0).map((product) => (
                                 <tr key={product._id} className="border-b transition-colors hover:bg-zinc-100/50 data-[state=selected]:bg-zinc-100 dark:hover:bg-zinc-800/50 dark:data-[state=selected]:bg-zinc-800">
                                     <td className="p-4 align-middle font-medium">{product.name}</td>
                                     <td className="p-4 align-middle text-zinc-500">{product.category}</td>

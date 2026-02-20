@@ -30,8 +30,13 @@ export async function GET(request) {
             query.$or = orConditions;
         }
 
-        if (typeFilter !== 'ALL') {
-            query.customerType = typeFilter;
+        if (typeFilter === 'WHOLESALER') {
+            query.customerType = 'WHOLESALER';
+        } else if (typeFilter === 'RETAILER') {
+            // Match explicit RETAILER docs OR docs with no customerType (default is RETAILER)
+            query.$and = [...(query.$and || []), {
+                $or: [{ customerType: 'RETAILER' }, { customerType: { $exists: false } }, { customerType: null }]
+            }];
         }
 
         if (filter === 'PAID') {
