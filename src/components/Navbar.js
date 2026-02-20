@@ -21,8 +21,7 @@ export default function Navbar() {
 
     const handleLogout = async () => {
         await fetch('/api/auth', { method: 'DELETE' });
-        router.push('/');
-        router.refresh();
+        window.location.href = '/';
     };
 
     return (

@@ -1,7 +1,7 @@
 import dbConnect from '@/lib/db';
 import Product from '@/models/Product';
 import Bill from '@/models/Bill';
-import { LayoutDashboard, Package, AlertTriangle, TrendingUp, FileText } from 'lucide-react';
+import { LayoutDashboard, Package, TrendingUp, FileText } from 'lucide-react';
 import Link from 'next/link';
 
 export const dynamic = 'force-dynamic';
@@ -10,7 +10,6 @@ async function getStats() {
     await dbConnect();
 
     const productCount = await Product.countDocuments();
-    const lowStockCount = await Product.countDocuments({ stock: { $lt: 5 } });
     const billCount = await Bill.countDocuments();
 
     // Calculate total available stock (Bags & MT) and breakdown
@@ -62,6 +61,41 @@ async function getStats() {
     });
 
     const soldTodayBreakdown = Object.entries(soldMap).map(([name, data]) => ({
+        name,
+        bags: data.bags,
+        mt: data.mt.toFixed(2)
+    }));
+
+    // Calculate sold stock this month and breakdown
+    const startOfMonth = new Date();
+    startOfMonth.setDate(1);
+    startOfMonth.setHours(0, 0, 0, 0);
+
+    const monthBills = await Bill.find({
+        createdAt: { $gte: startOfMonth }
+    }).populate('items.productId');
+
+    let soldMonthBags = 0;
+    let soldMonthMT = 0;
+    const monthSoldMap = {};
+
+    monthBills.forEach(bill => {
+        bill.items.forEach(item => {
+            soldMonthBags += item.quantity;
+            const weight = item.productId?.bagWeight || 50;
+            const mt = (item.quantity * weight) / 1000;
+            soldMonthMT += mt;
+
+            const prodName = item.productName || item.productId?.name || 'Unknown';
+            if (!monthSoldMap[prodName]) {
+                monthSoldMap[prodName] = { bags: 0, mt: 0 };
+            }
+            monthSoldMap[prodName].bags += item.quantity;
+            monthSoldMap[prodName].mt += mt;
+        });
+    });
+
+    const soldMonthBreakdown = Object.entries(monthSoldMap).map(([name, data]) => ({
         name,
         bags: data.bags,
         mt: data.mt.toFixed(2)
@@ -128,7 +162,6 @@ async function getStats() {
 
     return {
         productCount,
-        lowStockCount,
         billCount,
         totalRevenue,
         totalStockBags,
@@ -137,6 +170,9 @@ async function getStats() {
         soldTodayBags,
         soldTodayMT,
         soldTodayBreakdown,
+        soldMonthBags,
+        soldMonthMT,
+        soldMonthBreakdown,
         totalSoldBagsAllTime,
         totalSoldMTAllTime,
         totalSoldBreakdown,
@@ -180,6 +216,14 @@ export default async function DashboardPage() {
                     description="Sales for today"
                 />
                 <Card
+                    title="Sold This Month"
+                    value={`${stats.soldMonthBags} Bags`}
+                    subValue={`(${stats.soldMonthMT.toFixed(2)} MT)`}
+                    breakdown={stats.soldMonthBreakdown}
+                    icon={TrendingUp}
+                    description={`Sales for ${new Date().toLocaleString('default', { month: 'long' })}`}
+                />
+                <Card
                     title="Total Sold Stock"
                     value={`${stats.totalSoldBagsAllTime} Bags`}
                     subValue={`(${stats.totalSoldMTAllTime.toFixed(2)} MT)`}
@@ -189,7 +233,6 @@ export default async function DashboardPage() {
                 />
                 <Card title="Total Bills" value={stats.billCount} icon={FileText} description="Total invoices generated" />
                 <Card title="Total Revenue" value={`₹${stats.totalRevenue.toFixed(2)}`} icon={TrendingUp} description="Lifetime revenue" />
-                <Card title="Low Stock Alerts" value={stats.lowStockCount} icon={AlertTriangle} description="Products with < 5 items" alert={stats.lowStockCount > 0} />
             </div>
 
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
